@@ -46,3 +46,8 @@ project(':inventory') {
         implementation project(':core')
     }
 }
+project(':cart') {
+    dependencies {
+        implementation project(':core')
+    }
+}
