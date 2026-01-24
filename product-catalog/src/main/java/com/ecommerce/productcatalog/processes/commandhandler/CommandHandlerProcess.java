@@ -4,6 +4,8 @@ import com.ecommerce.core.application.ICommandHandler;
 import com.ecommerce.core.infrastructure.MongoClientProvider;
 import com.ecommerce.core.infrastructure.IRepository;
 import com.ecommerce.core.messaging.IMessageBus;
+import com.ecommerce.core.messaging.MessageDispatcher;
+import com.ecommerce.core.messaging.CommandHandlerDispatcherAdapter;
 import com.ecommerce.productcatalog.application.*;
 import com.ecommerce.productcatalog.domain.Product;
 import com.ecommerce.productcatalog.domain.ProductId;
@@ -33,20 +35,29 @@ public class CommandHandlerProcess {
         channel.queueDeclare(queueName, true, false, false, null);
 
         ObjectMapper objectMapper = new ObjectMapper();
-        ICommandHandler<CreateProductCommand, ProductId> createHandler = injector
-                .getInstance(CreateProductHandler.class);
-        ICommandHandler<UpdateProductDetailsCommand, Void> updateHandler = injector
-                .getInstance(UpdateProductDetailsHandler.class);
-        ICommandHandler<ChangeProductPriceCommand, Void> priceHandler = injector
-                .getInstance(ChangeProductPriceHandler.class);
-        ICommandHandler<ActivateProductCommand, Void> activateHandler = injector
-                .getInstance(ActivateProductHandler.class);
-        ICommandHandler<DeactivateProductCommand, Void> deactivateHandler = injector
-                .getInstance(DeactivateProductHandler.class);
-        ICommandHandler<GetProductSnapshotsCommand, Void> snapshotsHandler = injector
-                .getInstance(GetProductSnapshotsHandler.class);
+        MessageDispatcher dispatcher = new MessageDispatcher(objectMapper);
 
-        System.out.println("CommandHandler waiting for messages on " + queueName);
+        // Register handlers using Adapter
+        dispatcher.registerHandler("CreateProductCommand",
+                new CommandHandlerDispatcherAdapter<>(injector.getInstance(CreateProductHandler.class),
+                        CreateProductCommand.class));
+        dispatcher.registerHandler("UpdateProductDetailsCommand",
+                new CommandHandlerDispatcherAdapter<>(injector.getInstance(UpdateProductDetailsHandler.class),
+                        UpdateProductDetailsCommand.class));
+        dispatcher.registerHandler("ChangeProductPriceCommand",
+                new CommandHandlerDispatcherAdapter<>(injector.getInstance(ChangeProductPriceHandler.class),
+                        ChangeProductPriceCommand.class));
+        dispatcher.registerHandler("ActivateProductCommand",
+                new CommandHandlerDispatcherAdapter<>(injector.getInstance(ActivateProductHandler.class),
+                        ActivateProductCommand.class));
+        dispatcher.registerHandler("DeactivateProductCommand",
+                new CommandHandlerDispatcherAdapter<>(injector.getInstance(DeactivateProductHandler.class),
+                        DeactivateProductCommand.class));
+        dispatcher.registerHandler("GetProductSnapshotsCommand",
+                new CommandHandlerDispatcherAdapter<>(injector.getInstance(GetProductSnapshotsHandler.class),
+                        GetProductSnapshotsCommand.class));
+
+        System.out.println("ProductCatalog CommandHandler waiting for messages (Dispatcher Pattern) on " + queueName);
 
         DeliverCallback deliverCallback = (consumerTag, delivery) -> {
             String message = new String(delivery.getBody(), "UTF-8");
@@ -56,35 +67,18 @@ public class CommandHandlerProcess {
                     ? headers.get("X-Message-Type").toString()
                     : "";
 
-            try {
-                if ("CreateProductCommand".equals(messageType)) {
-                    CreateProductCommand command = objectMapper.readValue(message, CreateProductCommand.class);
-                    createHandler.handle(command).get();
-                } else if ("UpdateProductDetailsCommand".equals(messageType)) {
-                    UpdateProductDetailsCommand command = objectMapper.readValue(message,
-                            UpdateProductDetailsCommand.class);
-                    updateHandler.handle(command).get();
-                } else if ("ChangeProductPriceCommand".equals(messageType)) {
-                    ChangeProductPriceCommand command = objectMapper.readValue(message,
-                            ChangeProductPriceCommand.class);
-                    priceHandler.handle(command).get();
-                } else if ("ActivateProductCommand".equals(messageType)) {
-                    ActivateProductCommand command = objectMapper.readValue(message, ActivateProductCommand.class);
-                    activateHandler.handle(command).get();
-                } else if ("DeactivateProductCommand".equals(messageType)) {
-                    DeactivateProductCommand command = objectMapper.readValue(message, DeactivateProductCommand.class);
-                    deactivateHandler.handle(command).get();
-                } else if ("GetProductSnapshotsCommand".equals(messageType)) {
-                    GetProductSnapshotsCommand command = objectMapper.readValue(message,
-                            GetProductSnapshotsCommand.class);
-                    snapshotsHandler.handle(command).get();
-                } else {
-                    System.err.println("Unknown command type: " + messageType);
-                }
-                channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            dispatcher.dispatch(messageType, message)
+                    .thenRun(() -> {
+                        try {
+                            channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    })
+                    .exceptionally(e -> {
+                        e.printStackTrace();
+                        return null;
+                    });
         };
 
         channel.basicConsume(queueName, false, deliverCallback, consumerTag -> {

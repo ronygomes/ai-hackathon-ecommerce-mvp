@@ -3,6 +3,8 @@ package com.ecommerce.cart.processes.commandhandler;
 import com.ecommerce.core.application.ICommandHandler;
 import com.ecommerce.core.infrastructure.MongoClientProvider;
 import com.ecommerce.core.messaging.IMessageBus;
+import com.ecommerce.core.messaging.MessageDispatcher;
+import com.ecommerce.core.messaging.CommandHandlerDispatcherAdapter;
 import com.ecommerce.cart.application.*;
 import com.ecommerce.cart.infrastructure.MongoCartRepository;
 import com.ecommerce.cart.infrastructure.ICartRepository;
@@ -31,15 +33,26 @@ public class CartCommandHandlerProcess {
         channel.queueDeclare(queueName, true, false, false, null);
 
         ObjectMapper objectMapper = new ObjectMapper();
-        ICommandHandler<AddCartItemCommand, Void> addHandler = injector.getInstance(AddCartItemHandler.class);
-        ICommandHandler<RemoveCartItemCommand, Void> removeHandler = injector.getInstance(RemoveCartItemHandler.class);
-        ICommandHandler<UpdateCartItemQtyCommand, Void> updateHandler = injector
-                .getInstance(UpdateCartItemQtyHandler.class);
-        ICommandHandler<ClearCartCommand, Void> clearHandler = injector.getInstance(ClearCartHandler.class);
-        ICommandHandler<GetCartSnapshotCommand, Void> snapshotHandler = injector
-                .getInstance(GetCartSnapshotHandler.class);
+        MessageDispatcher dispatcher = new MessageDispatcher(objectMapper);
 
-        System.out.println("CartCommandHandler waiting for messages on " + queueName);
+        // Register handlers using Adapter
+        dispatcher.registerHandler("AddCartItemCommand",
+                new CommandHandlerDispatcherAdapter<>(injector.getInstance(AddCartItemHandler.class),
+                        AddCartItemCommand.class));
+        dispatcher.registerHandler("RemoveCartItemCommand",
+                new CommandHandlerDispatcherAdapter<>(injector.getInstance(RemoveCartItemHandler.class),
+                        RemoveCartItemCommand.class));
+        dispatcher.registerHandler("UpdateCartItemQtyCommand",
+                new CommandHandlerDispatcherAdapter<>(injector.getInstance(UpdateCartItemQtyHandler.class),
+                        UpdateCartItemQtyCommand.class));
+        dispatcher.registerHandler("ClearCartCommand",
+                new CommandHandlerDispatcherAdapter<>(injector.getInstance(ClearCartHandler.class),
+                        ClearCartCommand.class));
+        dispatcher.registerHandler("GetCartSnapshotCommand",
+                new CommandHandlerDispatcherAdapter<>(injector.getInstance(GetCartSnapshotHandler.class),
+                        GetCartSnapshotCommand.class));
+
+        System.out.println("CartCommandHandler waiting for messages (Dispatcher Pattern) on " + queueName);
 
         DeliverCallback deliverCallback = (consumerTag, delivery) -> {
             String message = new String(delivery.getBody(), "UTF-8");
@@ -49,29 +62,18 @@ public class CartCommandHandlerProcess {
                     ? headers.get("X-Message-Type").toString()
                     : "";
 
-            try {
-                if ("AddCartItemCommand".equals(messageType)) {
-                    AddCartItemCommand command = objectMapper.readValue(message, AddCartItemCommand.class);
-                    addHandler.handle(command).get();
-                } else if ("RemoveCartItemCommand".equals(messageType)) {
-                    RemoveCartItemCommand command = objectMapper.readValue(message, RemoveCartItemCommand.class);
-                    removeHandler.handle(command).get();
-                } else if ("UpdateCartItemQtyCommand".equals(messageType)) {
-                    UpdateCartItemQtyCommand command = objectMapper.readValue(message, UpdateCartItemQtyCommand.class);
-                    updateHandler.handle(command).get();
-                } else if ("ClearCartCommand".equals(messageType)) {
-                    ClearCartCommand command = objectMapper.readValue(message, ClearCartCommand.class);
-                    clearHandler.handle(command).get();
-                } else if ("GetCartSnapshotCommand".equals(messageType)) {
-                    GetCartSnapshotCommand command = objectMapper.readValue(message, GetCartSnapshotCommand.class);
-                    snapshotHandler.handle(command).get();
-                } else {
-                    System.err.println("Unknown command type: " + messageType);
-                }
-                channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            dispatcher.dispatch(messageType, message)
+                    .thenRun(() -> {
+                        try {
+                            channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    })
+                    .exceptionally(e -> {
+                        e.printStackTrace();
+                        return null;
+                    });
         };
 
         channel.basicConsume(queueName, false, deliverCallback, consumerTag -> {

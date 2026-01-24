@@ -4,6 +4,8 @@ import com.ecommerce.core.application.ICommandHandler;
 import com.ecommerce.core.infrastructure.MongoClientProvider;
 import com.ecommerce.core.infrastructure.IRepository;
 import com.ecommerce.core.messaging.IMessageBus;
+import com.ecommerce.core.messaging.MessageDispatcher;
+import com.ecommerce.core.messaging.CommandHandlerDispatcherAdapter;
 import com.ecommerce.inventory.application.*;
 import com.ecommerce.inventory.domain.InventoryItem;
 import com.ecommerce.inventory.domain.ProductId;
@@ -20,7 +22,6 @@ import com.mongodb.client.MongoClient;
 import com.rabbitmq.client.*;
 
 import java.util.Map;
-import java.util.UUID;
 
 public class InventoryCommandHandlerProcess {
     public static void main(String[] args) throws Exception {
@@ -35,15 +36,23 @@ public class InventoryCommandHandlerProcess {
         channel.queueDeclare(queueName, true, false, false, null);
 
         ObjectMapper objectMapper = new ObjectMapper();
-        ICommandHandler<SetStockCommand, Void> setStockHandler = injector.getInstance(SetStockHandler.class);
-        ICommandHandler<ValidateStockCommand, Boolean> validateHandler = injector
-                .getInstance(ValidateStockHandler.class);
-        ICommandHandler<ValidateStockBatchCommand, Void> validateBatchHandler = injector
-                .getInstance(ValidateStockBatchHandler.class);
-        ICommandHandler<DeductStockForOrderCommand, Void> deductHandler = injector
-                .getInstance(DeductStockForOrderHandler.class);
+        MessageDispatcher dispatcher = new MessageDispatcher(objectMapper);
 
-        System.out.println("InventoryCommandHandler waiting for messages on " + queueName);
+        // Register handlers using Adapter
+        dispatcher.registerHandler("SetStockCommand",
+                new CommandHandlerDispatcherAdapter<>(injector.getInstance(SetStockHandler.class),
+                        SetStockCommand.class));
+        dispatcher.registerHandler("ValidateStockCommand",
+                new CommandHandlerDispatcherAdapter<>(injector.getInstance(ValidateStockHandler.class),
+                        ValidateStockCommand.class));
+        dispatcher.registerHandler("ValidateStockBatchCommand",
+                new CommandHandlerDispatcherAdapter<>(injector.getInstance(ValidateStockBatchHandler.class),
+                        ValidateStockBatchCommand.class));
+        dispatcher.registerHandler("DeductStockForOrderCommand",
+                new CommandHandlerDispatcherAdapter<>(injector.getInstance(DeductStockForOrderHandler.class),
+                        DeductStockForOrderCommand.class));
+
+        System.out.println("InventoryCommandHandler waiting for messages (Dispatcher Pattern) on " + queueName);
 
         DeliverCallback deliverCallback = (consumerTag, delivery) -> {
             String message = new String(delivery.getBody(), "UTF-8");
@@ -53,28 +62,18 @@ public class InventoryCommandHandlerProcess {
                     ? headers.get("X-Message-Type").toString()
                     : "";
 
-            try {
-                if ("SetStockCommand".equals(messageType)) {
-                    SetStockCommand command = objectMapper.readValue(message, SetStockCommand.class);
-                    setStockHandler.handle(command).get();
-                } else if ("ValidateStockCommand".equals(messageType)) {
-                    ValidateStockCommand command = objectMapper.readValue(message, ValidateStockCommand.class);
-                    validateHandler.handle(command).get();
-                } else if ("ValidateStockBatchCommand".equals(messageType)) {
-                    ValidateStockBatchCommand command = objectMapper.readValue(message,
-                            ValidateStockBatchCommand.class);
-                    validateBatchHandler.handle(command).get();
-                } else if ("DeductStockForOrderCommand".equals(messageType)) {
-                    DeductStockForOrderCommand command = objectMapper.readValue(message,
-                            DeductStockForOrderCommand.class);
-                    deductHandler.handle(command).get();
-                } else {
-                    System.err.println("Unknown command type: " + messageType);
-                }
-                channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            dispatcher.dispatch(messageType, message)
+                    .thenRun(() -> {
+                        try {
+                            channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    })
+                    .exceptionally(e -> {
+                        e.printStackTrace();
+                        return null;
+                    });
         };
 
         channel.basicConsume(queueName, false, deliverCallback, consumerTag -> {

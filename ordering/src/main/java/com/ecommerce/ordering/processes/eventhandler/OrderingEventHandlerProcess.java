@@ -1,12 +1,14 @@
 package com.ecommerce.ordering.processes.eventhandler;
 
-import tools.jackson.databind.ObjectMapper;
+import com.ecommerce.core.infrastructure.MongoClientProvider;
+import com.ecommerce.core.messaging.MessageDispatcher;
+import com.ecommerce.ordering.processes.eventhandler.handlers.OrderCreatedProjectionHandler;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
-import com.ecommerce.core.infrastructure.MongoClientProvider;
-import com.ecommerce.checkout.saga.messages.events.OrderCreated;
 import com.rabbitmq.client.*;
 import org.bson.Document;
+import tools.jackson.databind.ObjectMapper;
+
 import java.util.Map;
 
 public class OrderingEventHandlerProcess {
@@ -26,6 +28,12 @@ public class OrderingEventHandlerProcess {
         channel.queueBind(queueName, exchangeName, "");
 
         ObjectMapper objectMapper = new ObjectMapper();
+        MessageDispatcher dispatcher = new MessageDispatcher(objectMapper);
+
+        // Register handlers
+        dispatcher.registerHandler("OrderCreated", new OrderCreatedProjectionHandler(collection));
+
+        System.out.println("Ordering EventHandler waiting for events (Dispatcher Pattern) on " + queueName);
 
         DeliverCallback deliverCallback = (consumerTag, delivery) -> {
             String message = new String(delivery.getBody(), "UTF-8");
@@ -35,20 +43,18 @@ public class OrderingEventHandlerProcess {
                     ? headers.get("X-Message-Type").toString()
                     : "";
 
-            try {
-                if ("OrderCreated".equals(messageType)) {
-                    OrderCreated event = objectMapper.readValue(message, OrderCreated.class);
-                    Document doc = new Document("_id", event.orderId())
-                            .append("guestToken", event.guestToken())
-                            .append("status", "SUBMITTED")
-                            .append("customerEmail", event.customerEmail());
-                    collection.insertOne(doc);
-                    System.out.println("Projected order: " + event.orderId());
-                }
-                channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            dispatcher.dispatch(messageType, message)
+                    .thenRun(() -> {
+                        try {
+                            channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    })
+                    .exceptionally(e -> {
+                        e.printStackTrace();
+                        return null;
+                    });
         };
 
         channel.basicConsume(queueName, false, deliverCallback, consumerTag -> {

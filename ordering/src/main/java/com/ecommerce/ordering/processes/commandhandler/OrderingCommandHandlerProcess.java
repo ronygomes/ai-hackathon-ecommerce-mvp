@@ -4,14 +4,16 @@ import com.ecommerce.core.application.ICommandHandler;
 import com.ecommerce.core.infrastructure.MongoClientProvider;
 import com.ecommerce.core.infrastructure.IRepository;
 import com.ecommerce.core.messaging.IMessageBus;
+import com.ecommerce.core.messaging.MessageDispatcher;
+import com.ecommerce.core.messaging.CommandHandlerDispatcherAdapter;
 import com.ecommerce.ordering.application.*;
 import com.ecommerce.ordering.domain.Order;
 import com.ecommerce.ordering.domain.OrderId;
 import com.ecommerce.ordering.infrastructure.MongoOrderRepository;
 import com.ecommerce.ordering.infrastructure.IOrderRepository;
 import com.ecommerce.ordering.infrastructure.OrderingMessageBus;
-import com.ecommerce.checkout.saga.messages.commands.CreateOrderCommand;
 import com.ecommerce.checkout.saga.messages.commands.MarkCheckoutCompletedCommand;
+import com.ecommerce.checkout.saga.messages.commands.CreateOrderCommand;
 import tools.jackson.databind.ObjectMapper;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
@@ -36,12 +38,17 @@ public class OrderingCommandHandlerProcess {
         channel.queueDeclare(queueName, true, false, false, null);
 
         ObjectMapper objectMapper = new ObjectMapper();
-        ICommandHandler<PlaceOrderCommand, UUID> placeOrderHandler = injector.getInstance(PlaceOrderHandler.class);
-        ICommandHandler<CreateOrderCommand, Void> createOrderHandler = injector.getInstance(CreateOrderHandler.class);
-        ICommandHandler<MarkCheckoutCompletedCommand, Void> markCompletedHandler = injector
-                .getInstance(MarkCheckoutCompletedHandler.class);
+        MessageDispatcher dispatcher = new MessageDispatcher(objectMapper);
 
-        System.out.println("OrderingCommandHandler waiting for messages on " + queueName);
+        // Register handlers using Adapter
+        dispatcher.registerHandler("PlaceOrderCommand",
+                new CommandHandlerDispatcherAdapter<>(injector.getInstance(PlaceOrderHandler.class),
+                        PlaceOrderCommand.class));
+        dispatcher.registerHandler("MarkCheckoutCompletedCommand",
+                new CommandHandlerDispatcherAdapter<>(injector.getInstance(MarkCheckoutCompletedHandler.class),
+                        MarkCheckoutCompletedCommand.class));
+
+        System.out.println("Ordering CommandHandler waiting for messages (Dispatcher Pattern) on " + queueName);
 
         DeliverCallback deliverCallback = (consumerTag, delivery) -> {
             String message = new String(delivery.getBody(), "UTF-8");
@@ -51,24 +58,18 @@ public class OrderingCommandHandlerProcess {
                     ? headers.get("X-Message-Type").toString()
                     : "";
 
-            try {
-                if ("PlaceOrderCommand".equals(messageType)) {
-                    PlaceOrderCommand command = objectMapper.readValue(message, PlaceOrderCommand.class);
-                    placeOrderHandler.handle(command).get();
-                } else if ("CreateOrderCommand".equals(messageType)) {
-                    CreateOrderCommand command = objectMapper.readValue(message, CreateOrderCommand.class);
-                    createOrderHandler.handle(command).get();
-                } else if ("MarkCheckoutCompletedCommand".equals(messageType)) {
-                    MarkCheckoutCompletedCommand command = objectMapper.readValue(message,
-                            MarkCheckoutCompletedCommand.class);
-                    markCompletedHandler.handle(command).get();
-                } else {
-                    System.err.println("Unknown command type: " + messageType);
-                }
-                channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            dispatcher.dispatch(messageType, message)
+                    .thenRun(() -> {
+                        try {
+                            channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    })
+                    .exceptionally(e -> {
+                        e.printStackTrace();
+                        return null;
+                    });
         };
 
         channel.basicConsume(queueName, false, deliverCallback, consumerTag -> {
