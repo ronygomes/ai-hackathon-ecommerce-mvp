@@ -87,9 +87,10 @@ public class CommandHandlerProcess {
     static class ProductCatalogModule extends AbstractModule {
         @Override
         protected void configure() {
-            bind(MongoClient.class).toProvider(MongoClientProvider.class);
-            bind(new TypeLiteral<IRepository<Product, ProductId>>() {
-            }).to(MongoProductRepository.class);
+            bind(com.mongodb.client.MongoClient.class)
+                    .toProvider(com.ecommerce.core.infrastructure.MongoClientProvider.class);
+            bind(com.google.inject.Key.get(new TypeLiteral<IRepository<Product, ProductId>>() {
+            })).to(MongoProductRepository.class);
             bind(IMessageBus.class).to(ProductCatalogMessageBus.class);
         }
     }

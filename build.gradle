@@ -56,3 +56,13 @@ project(':ordering') {
         implementation project(':core')
     }
 }
+
+project(':checkout-saga') {
+    dependencies {
+        implementation project(':core')
+        implementation project(':cart')
+        implementation project(':product-catalog')
+        implementation project(':inventory')
+        implementation project(':ordering')
+    }
+}

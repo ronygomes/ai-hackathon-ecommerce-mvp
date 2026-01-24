@@ -66,10 +66,11 @@ public class OrderingCommandHandlerProcess {
     static class OrderingModule extends AbstractModule {
         @Override
         protected void configure() {
-            bind(MongoClient.class).toProvider(MongoClientProvider.class);
+            bind(com.mongodb.client.MongoClient.class)
+                    .toProvider(com.ecommerce.core.infrastructure.MongoClientProvider.class);
             bind(IOrderRepository.class).to(MongoOrderRepository.class);
-            bind(new TypeLiteral<IRepository<Order, OrderId>>() {
-            }).to(MongoOrderRepository.class);
+            bind(com.google.inject.Key.get(new TypeLiteral<IRepository<Order, OrderId>>() {
+            })).to(MongoOrderRepository.class);
             bind(IMessageBus.class).to(OrderingMessageBus.class);
         }
     }

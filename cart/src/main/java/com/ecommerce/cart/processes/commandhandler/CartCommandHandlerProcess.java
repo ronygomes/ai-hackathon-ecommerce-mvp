@@ -82,10 +82,11 @@ public class CartCommandHandlerProcess {
     static class CartModule extends AbstractModule {
         @Override
         protected void configure() {
-            bind(MongoClient.class).toProvider(MongoClientProvider.class);
+            bind(com.mongodb.client.MongoClient.class)
+                    .toProvider(com.ecommerce.core.infrastructure.MongoClientProvider.class);
             bind(ICartRepository.class).to(MongoCartRepository.class);
-            bind(new TypeLiteral<IRepository<ShoppingCart, CartId>>() {
-            }).to(MongoCartRepository.class);
+            bind(com.google.inject.Key.get(new TypeLiteral<IRepository<ShoppingCart, CartId>>() {
+            })).to(MongoCartRepository.class);
             bind(IMessageBus.class).to(CartMessageBus.class);
         }
     }
