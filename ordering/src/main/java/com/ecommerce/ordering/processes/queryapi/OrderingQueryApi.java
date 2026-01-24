@@ -1,56 +1,35 @@
 package com.ecommerce.ordering.processes.queryapi;
 
-import com.ecommerce.core.infrastructure.MongoClientProvider;
+import spark.Spark;
+import tools.jackson.databind.ObjectMapper;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.model.Filters;
+import com.ecommerce.core.infrastructure.MongoClientProvider;
 import org.bson.Document;
-import tools.jackson.databind.ObjectMapper;
-
 import java.util.ArrayList;
 import java.util.List;
 
-import static spark.Spark.*;
-import static com.mongodb.client.model.Filters.eq;
-
 public class OrderingQueryApi {
     public static void main(String[] args) {
-        port(8087);
-
+        Spark.port(8087);
         MongoClient mongoClient = new MongoClientProvider().get();
-        MongoDatabase database = mongoClient.getDatabase("aihackathon");
+        MongoCollection<Document> collection = mongoClient.getDatabase("aihackathon")
+                .getCollection("order_projections");
+        ObjectMapper objectMapper = new ObjectMapper();
 
-        MongoCollection<Document> detailViewCollection = database.getCollection("order_detail_view");
-        MongoCollection<Document> adminListViewCollection = database.getCollection("admin_order_list_view");
-
-        // GET /orders/:orderIdOrNumber (Customer)
-        get("/orders/:id", (req, res) -> {
-            String id = req.params(":id");
-            Document order = detailViewCollection.find(
-                    com.mongodb.client.model.Filters.or(eq("_id", id), eq("orderNumber", id))).first();
-
-            if (order == null) {
-                res.status(404);
-                return "{\"error\": \"Order not found\"}";
-            }
-
-            order.remove("_id");
+        Spark.get("/orders/:guestToken", (req, res) -> {
+            String guestToken = req.params(":guestToken");
+            List<Document> orders = collection.find(Filters.eq("guestToken", guestToken)).into(new ArrayList<>());
             res.type("application/json");
-            return new ObjectMapper().writeValueAsString(order);
+            return objectMapper.writeValueAsString(orders);
         });
 
-        // GET /admin/orders (Admin)
-        get("/admin/orders", (req, res) -> {
-            List<Document> orders = adminListViewCollection.find().into(new ArrayList<>());
-            for (Document d : orders)
-                d.remove("_id");
+        Spark.get("/orders/id/:orderId", (req, res) -> {
+            String orderId = req.params(":orderId");
+            Document order = collection.find(Filters.eq("_id", orderId)).first();
             res.type("application/json");
-            return new ObjectMapper().writeValueAsString(orders);
-        });
-
-        exception(Exception.class, (e, req, res) -> {
-            res.status(500);
-            res.body("{\"error\": \"" + e.getMessage() + "\"}");
+            return order != null ? objectMapper.writeValueAsString(order) : "{}";
         });
     }
 }

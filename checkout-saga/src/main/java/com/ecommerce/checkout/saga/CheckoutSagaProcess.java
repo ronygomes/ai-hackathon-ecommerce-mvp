@@ -2,17 +2,8 @@ package com.ecommerce.checkout.saga;
 
 import com.ecommerce.core.application.ICommandBus;
 import com.ecommerce.core.infrastructure.RabbitMQCommandBus;
-import com.ecommerce.ordering.application.*;
-import com.ecommerce.ordering.domain.*;
-import com.ecommerce.cart.application.GetCartSnapshotCommand;
-import com.ecommerce.cart.application.ClearCartCommand;
-import com.ecommerce.cart.domain.CartSnapshotProvided;
-import com.ecommerce.productcatalog.application.GetProductSnapshotsCommand;
-import com.ecommerce.productcatalog.domain.ProductSnapshotsProvided;
-import com.ecommerce.inventory.application.ValidateStockBatchCommand;
-import com.ecommerce.inventory.application.DeductStockForOrderCommand;
-import com.ecommerce.inventory.domain.StockBatchValidated;
-import com.ecommerce.inventory.domain.StockDeductedForOrder;
+import com.ecommerce.checkout.saga.messages.commands.*;
+import com.ecommerce.checkout.saga.messages.events.*;
 import tools.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.*;
 
@@ -58,8 +49,8 @@ public class CheckoutSagaProcess {
             try {
                 if ("CheckoutRequested".equals(messageType)) {
                     CheckoutRequested event = objectMapper.readValue(message, CheckoutRequested.class);
-                    activeSagas.put(event.orderId(),
-                            new SagaState(event.orderId(), event.guestToken(), event.idempotencyKey()));
+                    SagaState state = new SagaState(event.orderId(), event.guestToken(), event.idempotencyKey());
+                    activeSagas.put(event.orderId(), state);
                     cartBus.send(new GetCartSnapshotCommand(event.guestToken()));
                 } else if ("CartSnapshotProvided".equals(messageType)) {
                     CartSnapshotProvided event = objectMapper.readValue(message, CartSnapshotProvided.class);
@@ -67,6 +58,7 @@ public class CheckoutSagaProcess {
                             .findFirst().orElse(null);
                     if (state != null) {
                         state.cartItems = event.items();
+                        state.totalItemsToDeduct = event.items().size();
                         List<UUID> pids = event.items().stream()
                                 .map(CartSnapshotProvided.CartItemSnapshot::productId)
                                 .collect(Collectors.toList());
@@ -78,10 +70,8 @@ public class CheckoutSagaProcess {
                             .filter(s -> s.cartItems != null && s.productSnapshots == null).findFirst().orElse(null);
                     if (state != null) {
                         state.productSnapshots = event.snapshots();
-                        List<com.ecommerce.inventory.application.ValidateStockBatchCommand.StockItemRequest> items = state.cartItems
-                                .stream()
-                                .map(i -> new com.ecommerce.inventory.application.ValidateStockBatchCommand.StockItemRequest(
-                                        i.productId(), i.qty()))
+                        List<ValidateStockBatchCommand.StockItemRequest> items = state.cartItems.stream()
+                                .map(i -> new ValidateStockBatchCommand.StockItemRequest(i.productId(), i.qty()))
                                 .collect(Collectors.toList());
                         inventoryBus.send(new ValidateStockBatchCommand(items));
                     }
@@ -91,10 +81,8 @@ public class CheckoutSagaProcess {
                             .findFirst().orElse(null);
                     if (state != null) {
                         state.stockValidated = true;
-                        List<com.ecommerce.inventory.application.DeductStockForOrderCommand.StockItemRequest> items = state.cartItems
-                                .stream()
-                                .map(i -> new com.ecommerce.inventory.application.DeductStockForOrderCommand.StockItemRequest(
-                                        i.productId(), i.qty()))
+                        List<DeductStockForOrderCommand.StockItemRequest> items = state.cartItems.stream()
+                                .map(i -> new DeductStockForOrderCommand.StockItemRequest(i.productId(), i.qty()))
                                 .collect(Collectors.toList());
                         inventoryBus.send(new DeductStockForOrderCommand(state.orderId, items));
                     }
@@ -102,31 +90,25 @@ public class CheckoutSagaProcess {
                     StockDeductedForOrder event = objectMapper.readValue(message, StockDeductedForOrder.class);
                     SagaState state = activeSagas.get(event.orderId());
                     if (state != null) {
-                        List<com.ecommerce.ordering.application.CreateOrderCommand.OrderItemRequest> items = state.cartItems
-                                .stream().map(ci -> {
-                                    com.ecommerce.productcatalog.domain.ProductSnapshotsProvided.ProductSnapshot ps = state.productSnapshots
-                                            .stream()
-                                            .filter(s -> s.productId().equals(ci.productId())).findFirst().get();
-                                    return new com.ecommerce.ordering.application.CreateOrderCommand.OrderItemRequest(
-                                            ci.productId(), ps.sku(), ps.name(), ps.price(), ci.qty());
-                                }).collect(Collectors.toList());
-
-                        orderBus.send(new CreateOrderCommand(state.orderId, state.guestToken, null, null,
-                                state.idempotencyKey, items));
+                        state.deductedItemsCount++;
+                        if (state.deductedItemsCount >= state.totalItemsToDeduct) {
+                            orderBus.send(new MarkCheckoutCompletedCommand(state.orderId));
+                        }
                     }
                 } else if ("OrderCreated".equals(messageType)) {
+                    // This event is now fired by Ordering AFTER the saga marks it completed
                     OrderCreated event = objectMapper.readValue(message, OrderCreated.class);
-                    SagaState state = activeSagas.get(event.orderId());
+                    SagaState state = activeSagas.get(UUID.fromString(event.orderId()));
                     if (state != null) {
                         cartBus.send(new ClearCartCommand(state.guestToken));
                     }
                 } else if ("CartCleared".equals(messageType)) {
-                    SagaState state = activeSagas.values().stream().filter(s -> s.stockValidated).findFirst()
-                            .orElse(null);
+                    CartCleared event = objectMapper.readValue(message, CartCleared.class);
+                    SagaState state = activeSagas.values().stream().filter(s -> s.guestToken.equals(event.guestToken()))
+                            .findFirst().orElse(null);
                     if (state != null) {
-                        orderBus.send(new MarkCheckoutCompletedCommand(state.orderId));
                         activeSagas.remove(state.orderId);
-                        System.out.println("Saga COMPLETED for order: " + state.orderId);
+                        System.out.println("Saga SUCCESSFULLY COMPLETED for order: " + state.orderId);
                     }
                 }
                 channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
@@ -143,7 +125,11 @@ public class CheckoutSagaProcess {
         UUID orderId;
         String guestToken;
         String idempotencyKey;
+
         boolean stockValidated = false;
+        int totalItemsToDeduct = 0;
+        int deductedItemsCount = 0;
+
         List<CartSnapshotProvided.CartItemSnapshot> cartItems;
         List<ProductSnapshotsProvided.ProductSnapshot> productSnapshots;
 

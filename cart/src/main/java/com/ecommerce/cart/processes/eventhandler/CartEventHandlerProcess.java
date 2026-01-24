@@ -2,6 +2,7 @@ package com.ecommerce.cart.processes.eventhandler;
 
 import com.ecommerce.core.infrastructure.MongoClientProvider;
 import com.ecommerce.cart.domain.*;
+import com.ecommerce.checkout.saga.messages.events.CartCleared;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
@@ -74,7 +75,8 @@ public class CartEventHandlerProcess {
                             Updates.pull("items", new Document("productId", event.productId().toString())));
                 } else if ("CartCleared".equals(messageType)) {
                     CartCleared event = objectMapper.readValue(message, CartCleared.class);
-                    cartViewCollection.updateOne(eq("_id", event.cartId().toString()),
+                    cartViewCollection.updateOne(eq("_id", event.guestToken()), // Fixed field name to match centralized
+                                                                                // record if changed
                             Updates.set("items", new ArrayList<>()));
                 }
                 channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);

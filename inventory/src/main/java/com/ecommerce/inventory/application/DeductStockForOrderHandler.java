@@ -4,10 +4,13 @@ import com.ecommerce.core.application.ICommandHandler;
 import com.ecommerce.core.infrastructure.IRepository;
 import com.ecommerce.core.messaging.IMessageBus;
 import com.ecommerce.inventory.domain.*;
+import com.ecommerce.checkout.saga.messages.commands.DeductStockForOrderCommand;
+import com.ecommerce.checkout.saga.messages.events.StockDeductedForOrder;
 import com.google.inject.Inject;
-import java.util.concurrent.CompletableFuture;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 public class DeductStockForOrderHandler implements ICommandHandler<DeductStockForOrderCommand, Void> {
     private final IRepository<InventoryItem, ProductId> repository;
@@ -21,19 +24,22 @@ public class DeductStockForOrderHandler implements ICommandHandler<DeductStockFo
 
     @Override
     public CompletableFuture<Void> handle(DeductStockForOrderCommand command) {
-        // Simple MVP implementation: deduct one by one.
-        // In a real system, this should be more transactional or use SAGA.
-        List<CompletableFuture<Void>> deductions = command.items().stream()
-                .map(req -> repository.getById(new ProductId(req.productId()))
-                        .thenCompose(opt -> opt.map(item -> {
-                            item.deductForOrder(command.orderId(), new Quantity(req.qty()));
-                            return repository.save(item)
-                                    .thenCompose(v -> messageBus.publish(item.getUncommittedEvents()))
-                                    .thenRun(item::clearUncommittedEvents);
-                        }).orElse(CompletableFuture.failedFuture(
-                                new RuntimeException("Invemtory item not found for product: " + req.productId())))))
-                .collect(Collectors.toList());
+        return CompletableFuture.runAsync(() -> {
+            try {
+                for (com.ecommerce.checkout.saga.messages.commands.DeductStockForOrderCommand.StockItemRequest item : command
+                        .items()) {
+                    InventoryItem inv = repository.getById(ProductId.fromString(item.productId().toString())).get()
+                            .orElseThrow(
+                                    () -> new RuntimeException("Stock not found for Product: " + item.productId()));
+                    inv.deductStock(new Quantity(item.qty()), command.orderId().toString());
 
-        return CompletableFuture.allOf(deductions.toArray(new CompletableFuture[0]));
+                    repository.save(inv).get();
+                    messageBus.publish(inv.getUncommittedEvents()).get();
+                    inv.clearUncommittedEvents();
+                }
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to deduct stock", e);
+            }
+        });
     }
 }

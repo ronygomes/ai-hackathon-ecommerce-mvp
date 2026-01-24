@@ -2,19 +2,17 @@ package com.ecommerce.cart.processes.commandhandler;
 
 import com.ecommerce.core.application.ICommandHandler;
 import com.ecommerce.core.infrastructure.MongoClientProvider;
-import com.ecommerce.core.infrastructure.IRepository;
 import com.ecommerce.core.messaging.IMessageBus;
 import com.ecommerce.cart.application.*;
-import com.ecommerce.cart.domain.ShoppingCart;
-import com.ecommerce.cart.domain.CartId;
 import com.ecommerce.cart.infrastructure.MongoCartRepository;
 import com.ecommerce.cart.infrastructure.ICartRepository;
 import com.ecommerce.cart.infrastructure.CartMessageBus;
+import com.ecommerce.checkout.saga.messages.commands.ClearCartCommand;
+import com.ecommerce.checkout.saga.messages.commands.GetCartSnapshotCommand;
 import tools.jackson.databind.ObjectMapper;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import com.google.inject.TypeLiteral;
 import com.mongodb.client.MongoClient;
 import com.rabbitmq.client.*;
 
@@ -33,12 +31,13 @@ public class CartCommandHandlerProcess {
         channel.queueDeclare(queueName, true, false, false, null);
 
         ObjectMapper objectMapper = new ObjectMapper();
-        ICommandHandler<CreateCartCommand, Void> createHandler = injector.getInstance(CreateCartHandler.class);
         ICommandHandler<AddCartItemCommand, Void> addHandler = injector.getInstance(AddCartItemHandler.class);
+        ICommandHandler<RemoveCartItemCommand, Void> removeHandler = injector.getInstance(RemoveCartItemHandler.class);
         ICommandHandler<UpdateCartItemQtyCommand, Void> updateHandler = injector
                 .getInstance(UpdateCartItemQtyHandler.class);
-        ICommandHandler<RemoveCartItemCommand, Void> removeHandler = injector.getInstance(RemoveCartItemHandler.class);
         ICommandHandler<ClearCartCommand, Void> clearHandler = injector.getInstance(ClearCartHandler.class);
+        ICommandHandler<GetCartSnapshotCommand, Void> snapshotHandler = injector
+                .getInstance(GetCartSnapshotHandler.class);
 
         System.out.println("CartCommandHandler waiting for messages on " + queueName);
 
@@ -51,21 +50,21 @@ public class CartCommandHandlerProcess {
                     : "";
 
             try {
-                if ("CreateCartCommand".equals(messageType)) {
-                    CreateCartCommand command = objectMapper.readValue(message, CreateCartCommand.class);
-                    createHandler.handle(command).get();
-                } else if ("AddCartItemCommand".equals(messageType)) {
+                if ("AddCartItemCommand".equals(messageType)) {
                     AddCartItemCommand command = objectMapper.readValue(message, AddCartItemCommand.class);
                     addHandler.handle(command).get();
-                } else if ("UpdateCartItemQtyCommand".equals(messageType)) {
-                    UpdateCartItemQtyCommand command = objectMapper.readValue(message, UpdateCartItemQtyCommand.class);
-                    updateHandler.handle(command).get();
                 } else if ("RemoveCartItemCommand".equals(messageType)) {
                     RemoveCartItemCommand command = objectMapper.readValue(message, RemoveCartItemCommand.class);
                     removeHandler.handle(command).get();
+                } else if ("UpdateCartItemQtyCommand".equals(messageType)) {
+                    UpdateCartItemQtyCommand command = objectMapper.readValue(message, UpdateCartItemQtyCommand.class);
+                    updateHandler.handle(command).get();
                 } else if ("ClearCartCommand".equals(messageType)) {
                     ClearCartCommand command = objectMapper.readValue(message, ClearCartCommand.class);
                     clearHandler.handle(command).get();
+                } else if ("GetCartSnapshotCommand".equals(messageType)) {
+                    GetCartSnapshotCommand command = objectMapper.readValue(message, GetCartSnapshotCommand.class);
+                    snapshotHandler.handle(command).get();
                 } else {
                     System.err.println("Unknown command type: " + messageType);
                 }
@@ -82,11 +81,8 @@ public class CartCommandHandlerProcess {
     static class CartModule extends AbstractModule {
         @Override
         protected void configure() {
-            bind(com.mongodb.client.MongoClient.class)
-                    .toProvider(com.ecommerce.core.infrastructure.MongoClientProvider.class);
+            bind(MongoClient.class).toProvider(MongoClientProvider.class);
             bind(ICartRepository.class).to(MongoCartRepository.class);
-            bind(com.google.inject.Key.get(new TypeLiteral<IRepository<ShoppingCart, CartId>>() {
-            })).to(MongoCartRepository.class);
             bind(IMessageBus.class).to(CartMessageBus.class);
         }
     }

@@ -39,30 +39,30 @@ subprojects {
 project(':product-catalog') {
     dependencies {
         implementation project(':core')
+        implementation project(':checkout-saga')
     }
 }
 project(':inventory') {
     dependencies {
         implementation project(':core')
+        implementation project(':checkout-saga')
     }
 }
 project(':cart') {
     dependencies {
         implementation project(':core')
+        implementation project(':checkout-saga')
     }
 }
 project(':ordering') {
     dependencies {
         implementation project(':core')
+        implementation project(':checkout-saga')
     }
 }
 
 project(':checkout-saga') {
     dependencies {
         implementation project(':core')
-        implementation project(':cart')
-        implementation project(':product-catalog')
-        implementation project(':inventory')
-        implementation project(':ordering')
     }
 }

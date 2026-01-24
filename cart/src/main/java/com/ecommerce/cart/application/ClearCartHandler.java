@@ -4,7 +4,11 @@ import com.ecommerce.core.application.ICommandHandler;
 import com.ecommerce.core.messaging.IMessageBus;
 import com.ecommerce.cart.domain.*;
 import com.ecommerce.cart.infrastructure.ICartRepository;
+import com.ecommerce.checkout.saga.messages.commands.ClearCartCommand;
+import com.ecommerce.checkout.saga.messages.events.CartCleared;
 import com.google.inject.Inject;
+import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 public class ClearCartHandler implements ICommandHandler<ClearCartCommand, Void> {
@@ -19,19 +23,15 @@ public class ClearCartHandler implements ICommandHandler<ClearCartCommand, Void>
 
     @Override
     public CompletableFuture<Void> handle(ClearCartCommand command) {
-        GuestToken guestToken = new GuestToken(command.guestToken());
-
-        return repository.getByGuestToken(guestToken)
-                .thenCompose(opt -> {
-                    if (opt.isEmpty())
-                        return CompletableFuture.completedFuture(null);
-
-                    ShoppingCart cart = opt.get();
-                    cart.clear();
-
-                    return repository.save(cart)
-                            .thenCompose(v -> messageBus.publish(cart.getUncommittedEvents()))
-                            .thenRun(cart::clearUncommittedEvents);
+        return repository.getById(new CartId(UUID.fromString(command.guestToken())))
+                .thenCompose(cartOpt -> {
+                    if (cartOpt.isPresent()) {
+                        ShoppingCart cart = cartOpt.get();
+                        cart.clear();
+                        return repository.save(cart)
+                                .thenCompose(v -> messageBus.publish(List.of(new CartCleared(command.guestToken()))));
+                    }
+                    return CompletableFuture.completedFuture(null);
                 });
     }
 }

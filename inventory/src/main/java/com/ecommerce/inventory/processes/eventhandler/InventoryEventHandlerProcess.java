@@ -8,6 +8,7 @@ import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.ReplaceOptions;
 import com.mongodb.client.model.Updates;
 import com.rabbitmq.client.*;
+import com.ecommerce.checkout.saga.messages.events.StockDeductedForOrder;
 import org.bson.Document;
 import tools.jackson.databind.ObjectMapper;
 

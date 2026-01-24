@@ -10,6 +10,8 @@ import com.ecommerce.ordering.domain.OrderId;
 import com.ecommerce.ordering.infrastructure.MongoOrderRepository;
 import com.ecommerce.ordering.infrastructure.IOrderRepository;
 import com.ecommerce.ordering.infrastructure.OrderingMessageBus;
+import com.ecommerce.checkout.saga.messages.commands.CreateOrderCommand;
+import com.ecommerce.checkout.saga.messages.commands.MarkCheckoutCompletedCommand;
 import tools.jackson.databind.ObjectMapper;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
@@ -35,6 +37,9 @@ public class OrderingCommandHandlerProcess {
 
         ObjectMapper objectMapper = new ObjectMapper();
         ICommandHandler<PlaceOrderCommand, UUID> placeOrderHandler = injector.getInstance(PlaceOrderHandler.class);
+        ICommandHandler<CreateOrderCommand, Void> createOrderHandler = injector.getInstance(CreateOrderHandler.class);
+        ICommandHandler<MarkCheckoutCompletedCommand, Void> markCompletedHandler = injector
+                .getInstance(MarkCheckoutCompletedHandler.class);
 
         System.out.println("OrderingCommandHandler waiting for messages on " + queueName);
 
@@ -50,6 +55,13 @@ public class OrderingCommandHandlerProcess {
                 if ("PlaceOrderCommand".equals(messageType)) {
                     PlaceOrderCommand command = objectMapper.readValue(message, PlaceOrderCommand.class);
                     placeOrderHandler.handle(command).get();
+                } else if ("CreateOrderCommand".equals(messageType)) {
+                    CreateOrderCommand command = objectMapper.readValue(message, CreateOrderCommand.class);
+                    createOrderHandler.handle(command).get();
+                } else if ("MarkCheckoutCompletedCommand".equals(messageType)) {
+                    MarkCheckoutCompletedCommand command = objectMapper.readValue(message,
+                            MarkCheckoutCompletedCommand.class);
+                    markCompletedHandler.handle(command).get();
                 } else {
                     System.err.println("Unknown command type: " + messageType);
                 }

@@ -19,6 +19,10 @@ public class CartItem {
         return quantity;
     }
 
+    public void addQuantity(Quantity quantity) {
+        this.quantity = this.quantity.add(quantity.value());
+    }
+
     public void updateQuantity(Quantity newQty) {
         this.quantity = newQty;
     }

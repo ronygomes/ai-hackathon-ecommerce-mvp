@@ -9,6 +9,7 @@ import com.ecommerce.productcatalog.domain.Product;
 import com.ecommerce.productcatalog.domain.ProductId;
 import com.ecommerce.productcatalog.infrastructure.MongoProductRepository;
 import com.ecommerce.productcatalog.infrastructure.ProductCatalogMessageBus;
+import com.ecommerce.checkout.saga.messages.commands.GetProductSnapshotsCommand;
 import tools.jackson.databind.ObjectMapper;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
@@ -42,6 +43,8 @@ public class CommandHandlerProcess {
                 .getInstance(ActivateProductHandler.class);
         ICommandHandler<DeactivateProductCommand, Void> deactivateHandler = injector
                 .getInstance(DeactivateProductHandler.class);
+        ICommandHandler<GetProductSnapshotsCommand, Void> snapshotsHandler = injector
+                .getInstance(GetProductSnapshotsHandler.class);
 
         System.out.println("CommandHandler waiting for messages on " + queueName);
 
@@ -71,6 +74,10 @@ public class CommandHandlerProcess {
                 } else if ("DeactivateProductCommand".equals(messageType)) {
                     DeactivateProductCommand command = objectMapper.readValue(message, DeactivateProductCommand.class);
                     deactivateHandler.handle(command).get();
+                } else if ("GetProductSnapshotsCommand".equals(messageType)) {
+                    GetProductSnapshotsCommand command = objectMapper.readValue(message,
+                            GetProductSnapshotsCommand.class);
+                    snapshotsHandler.handle(command).get();
                 } else {
                     System.err.println("Unknown command type: " + messageType);
                 }
@@ -87,8 +94,7 @@ public class CommandHandlerProcess {
     static class ProductCatalogModule extends AbstractModule {
         @Override
         protected void configure() {
-            bind(com.mongodb.client.MongoClient.class)
-                    .toProvider(com.ecommerce.core.infrastructure.MongoClientProvider.class);
+            bind(MongoClient.class).toProvider(MongoClientProvider.class);
             bind(com.google.inject.Key.get(new TypeLiteral<IRepository<Product, ProductId>>() {
             })).to(MongoProductRepository.class);
             bind(IMessageBus.class).to(ProductCatalogMessageBus.class);

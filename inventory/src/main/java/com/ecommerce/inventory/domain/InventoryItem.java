@@ -1,6 +1,7 @@
 package com.ecommerce.inventory.domain;
 
 import com.ecommerce.core.domain.BaseAggregate;
+import com.ecommerce.checkout.saga.messages.events.StockDeductedForOrder;
 import java.util.UUID;
 
 public class InventoryItem extends BaseAggregate<ProductId> {
@@ -27,17 +28,13 @@ public class InventoryItem extends BaseAggregate<ProductId> {
         this.addEvent(new StockSet(this.id.value(), oldQty.value(), newQty.value(), reason.value(), "admin"));
     }
 
-    public void deductForOrder(UUID orderId, Quantity qty) {
+    public void deductStock(Quantity qty, String orderId) {
         if (!this.quantity.isGreaterThanOrEqual(qty)) {
-            this.addEvent(new StockDeductionRejected(orderId, this.id.value(), qty.value(), this.quantity.value(),
-                    "Insufficient stock"));
-            return;
+            throw new RuntimeException("Insufficient stock for Product: " + this.id.value());
         }
 
-        Quantity oldQty = this.quantity;
         this.quantity = this.quantity.subtract(qty);
-        this.addEvent(new StockDeductedForOrder(orderId, this.id.value(), qty.value(), oldQty.value(),
-                this.quantity.value()));
+        this.addEvent(new StockDeductedForOrder(UUID.fromString(orderId), this.id.value(), this.quantity.value()));
     }
 
     public boolean isAvailable(Quantity requestedQty) {

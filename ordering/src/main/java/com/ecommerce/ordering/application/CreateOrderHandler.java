@@ -1,40 +1,42 @@
 package com.ecommerce.ordering.application;
 
 import com.ecommerce.core.application.ICommandHandler;
-import com.ecommerce.core.messaging.IMessageBus;
 import com.ecommerce.ordering.domain.*;
 import com.ecommerce.ordering.infrastructure.IOrderRepository;
+import com.ecommerce.checkout.saga.messages.commands.CreateOrderCommand;
 import com.google.inject.Inject;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 public class CreateOrderHandler implements ICommandHandler<CreateOrderCommand, Void> {
-    private final IOrderRepository repository;
-    private final IMessageBus messageBus;
+        private final IOrderRepository repository;
 
-    @Inject
-    public CreateOrderHandler(IOrderRepository repository, IMessageBus messageBus) {
-        this.repository = repository;
-        this.messageBus = messageBus;
-    }
+        @Inject
+        public CreateOrderHandler(IOrderRepository repository) {
+                this.repository = repository;
+        }
 
-    @Override
-    public CompletableFuture<Void> handle(CreateOrderCommand command) {
-        List<OrderLineItem> lineItems = command.items().stream()
-                .map(i -> new OrderLineItem(i.productId(), i.sku(), i.name(), i.unitPrice(), i.qty()))
-                .collect(Collectors.toList());
+        @Override
+        public CompletableFuture<Void> handle(CreateOrderCommand command) {
+                CustomerInfo customerInfo = new CustomerInfo(command.customerName(), command.customerPhone(),
+                                command.customerEmail());
+                ShippingAddress address = new ShippingAddress(command.addressLine1(), command.addressCity(),
+                                command.addressZip(), command.addressCountry());
 
-        Order order = Order.place(
-                new OrderId(command.orderId()),
-                new GuestToken(command.guestToken()),
-                command.customerInfo(),
-                command.address(),
-                lineItems,
-                IdempotencyKey.fromString(command.idempotencyKey()));
+                List<OrderLineItem> items = command.items().stream()
+                                .map(i -> new OrderLineItem(i.productId(), i.sku(), i.name(), i.unitPrice(), i.qty()))
+                                .collect(Collectors.toList());
 
-        return repository.save(order)
-                .thenCompose(v -> messageBus.publish(order.getUncommittedEvents()))
-                .thenRun(order::clearUncommittedEvents);
-    }
+                Order order = Order.place(
+                                OrderId.fromString(command.orderId().toString()),
+                                new GuestToken(command.guestToken()),
+                                customerInfo,
+                                address,
+                                items,
+                                IdempotencyKey.fromString(command.idempotencyKey()));
+
+                return repository.save(order);
+        }
 }

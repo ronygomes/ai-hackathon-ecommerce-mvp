@@ -1,4 +1,4 @@
-package com.ecommerce.cart.application;
+package com.ecommerce.checkout.saga.messages.commands;
 
 import com.ecommerce.core.application.ICommand;
 

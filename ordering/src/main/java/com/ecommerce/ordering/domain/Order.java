@@ -1,26 +1,21 @@
 package com.ecommerce.ordering.domain;
 
 import com.ecommerce.core.domain.BaseAggregate;
+import com.ecommerce.checkout.saga.messages.events.CheckoutRequested;
+import com.ecommerce.checkout.saga.messages.events.OrderCreated;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class Order extends BaseAggregate<OrderId> {
-    private OrderNumber orderNumber;
-    private GuestToken guestToken;
-    private CustomerInfo customerInfo;
-    private ShippingAddress shippingAddress;
-    private List<OrderLineItem> items = new ArrayList<>();
-    private OrderTotals totals;
-    private IdempotencyKey idempotencyKey;
-    private String paymentMethod = "COD";
-    private String paymentStatus = "Pending";
-    private boolean stockCommitted = false;
-    private boolean completed = false;
-
-    public Order() {
-        // Required for Jackson
-    }
+    private final OrderNumber orderNumber;
+    private final GuestToken guestToken;
+    private final CustomerInfo customerInfo;
+    private final ShippingAddress shippingAddress;
+    private final List<OrderLineItem> items;
+    private final OrderTotals totals;
+    private final IdempotencyKey idempotencyKey;
+    private OrderStatus status;
 
     private Order(OrderId id, OrderNumber orderNumber, GuestToken guestToken, CustomerInfo customerInfo,
             ShippingAddress shippingAddress, List<OrderLineItem> items, OrderTotals totals,
@@ -33,87 +28,44 @@ public class Order extends BaseAggregate<OrderId> {
         this.items = items;
         this.totals = totals;
         this.idempotencyKey = idempotencyKey;
+        this.status = OrderStatus.PENDING;
     }
 
-    public static Order place(OrderId id, GuestToken guestToken, CustomerInfo customerInfo,
-            ShippingAddress shippingAddress, List<OrderLineItem> items, IdempotencyKey idempotencyKey) {
-
-        if (items.isEmpty()) {
-            throw new IllegalArgumentException("Cannot place an order with no items");
-        }
-
-        double subtotal = items.stream().mapToDouble(OrderLineItem::getLineTotal).sum();
-        OrderTotals totals = OrderTotals.calculate(subtotal, 0.0);
+    public static Order place(OrderId id, GuestToken guestToken, CustomerInfo customerInfo, ShippingAddress address,
+            List<OrderLineItem> items, IdempotencyKey idempotencyKey) {
         OrderNumber orderNumber = OrderNumber.generate();
-
-        Order order = new Order(id, orderNumber, guestToken, customerInfo, shippingAddress, items, totals,
+        OrderTotals totals = OrderTotals.calculate(items);
+        Order order = new Order(id, orderNumber, guestToken, customerInfo, address, items, totals,
                 idempotencyKey);
 
-        order.addEvent(new OrderCreated(id.value(), orderNumber.value(), guestToken.value(), customerInfo,
-                shippingAddress, totals, items));
-
-        List<OrderStockCommitRequested.StockItem> stockItems = items.stream()
-                .map(i -> new OrderStockCommitRequested.StockItem(i.getProductId(), i.getQuantity()))
-                .collect(Collectors.toList());
-
-        order.addEvent(new OrderStockCommitRequested(id.value(), stockItems));
+        // Notify saga to start
+        order.addEvent(new CheckoutRequested(
+                id.value(),
+                guestToken.value(),
+                guestToken.value(), // cartId is guestToken in MVP
+                customerInfo.name(),
+                customerInfo.phone(),
+                customerInfo.email(),
+                address.line1(),
+                address.city(),
+                address.postalCode(),
+                address.country(),
+                idempotencyKey.value()));
 
         return order;
     }
 
-    public void markStockCommitted() {
-        this.stockCommitted = true;
-        this.addEvent(new OrderStockCommitted(this.id.value()));
-    }
-
     public void finalizeCreated() {
-        this.completed = true;
-        // This is where we might publish the final OrderSubmitted integration event
-        this.addEvent(new OrderSubmitted(this.id.value(), this.orderNumber.value(), this.guestToken.value(), this.items,
-                this.totals));
+        this.status = OrderStatus.COMPLETED;
+        // Notify saga step or other systems that the order is now finalized
+        addEvent(new OrderCreated(id.value().toString(), guestToken.value(), customerInfo.email()));
     }
 
     public OrderNumber getOrderNumber() {
         return orderNumber;
     }
 
-    public GuestToken getGuestToken() {
-        return guestToken;
-    }
-
-    public CustomerInfo getCustomerInfo() {
-        return customerInfo;
-    }
-
-    public ShippingAddress getShippingAddress() {
-        return shippingAddress;
-    }
-
-    public List<OrderLineItem> getItems() {
-        return items;
-    }
-
-    public OrderTotals getTotals() {
-        return totals;
-    }
-
-    public IdempotencyKey getIdempotencyKey() {
-        return idempotencyKey;
-    }
-
-    public String getPaymentMethod() {
-        return paymentMethod;
-    }
-
-    public String getPaymentStatus() {
-        return paymentStatus;
-    }
-
-    public boolean isStockCommitted() {
-        return stockCommitted;
-    }
-
-    public boolean isCompleted() {
-        return completed;
+    public OrderStatus getStatus() {
+        return status;
     }
 }

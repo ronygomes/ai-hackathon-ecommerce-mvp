@@ -1,4 +1,4 @@
-package com.ecommerce.productcatalog.domain;
+package com.ecommerce.checkout.saga.messages.events;
 
 import com.ecommerce.core.domain.IDomainEvent;
 import java.util.List;

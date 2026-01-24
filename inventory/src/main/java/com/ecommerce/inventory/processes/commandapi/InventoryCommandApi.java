@@ -2,8 +2,8 @@ package com.ecommerce.inventory.processes.commandapi;
 
 import com.ecommerce.core.application.ICommandBus;
 import com.ecommerce.core.infrastructure.RabbitMQCommandBus;
-import com.ecommerce.inventory.application.DeductStockForOrderCommand;
 import com.ecommerce.inventory.application.SetStockCommand;
+import com.ecommerce.checkout.saga.messages.commands.DeductStockForOrderCommand;
 import tools.jackson.databind.ObjectMapper;
 
 import static spark.Spark.*;

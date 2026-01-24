@@ -27,9 +27,6 @@ public class PlaceOrderHandler implements ICommandHandler<PlaceOrderCommand, UUI
         return repository.getByIdempotencyKey(key)
                 .thenCompose(existingOpt -> {
                     if (existingOpt.isPresent()) {
-                        // MVP: Just return existing ID.
-                        // Production would check if contents match and return IDEMPOTENCY_CONFLICT if
-                        // not.
                         return CompletableFuture.completedFuture(existingOpt.get().getId().value());
                     }
 

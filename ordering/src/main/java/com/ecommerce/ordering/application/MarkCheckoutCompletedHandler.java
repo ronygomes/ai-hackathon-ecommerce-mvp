@@ -4,6 +4,7 @@ import com.ecommerce.core.application.ICommandHandler;
 import com.ecommerce.core.messaging.IMessageBus;
 import com.ecommerce.ordering.domain.*;
 import com.ecommerce.ordering.infrastructure.IOrderRepository;
+import com.ecommerce.checkout.saga.messages.commands.MarkCheckoutCompletedCommand;
 import com.google.inject.Inject;
 import java.util.concurrent.CompletableFuture;
 
