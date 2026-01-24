@@ -51,3 +51,8 @@ project(':cart') {
         implementation project(':core')
     }
 }
+project(':ordering') {
+    dependencies {
+        implementation project(':core')
+    }
+}
