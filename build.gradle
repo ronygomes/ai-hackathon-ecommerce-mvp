@@ -41,3 +41,8 @@ project(':product-catalog') {
         implementation project(':core')
     }
 }
+project(':inventory') {
+    dependencies {
+        implementation project(':core')
+    }
+}

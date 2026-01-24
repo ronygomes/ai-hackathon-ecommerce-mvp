@@ -1,3 +1,4 @@
 rootProject.name = 'ecommerce-mvp'
 include 'core'
 include 'product-catalog'
+include 'inventory'
