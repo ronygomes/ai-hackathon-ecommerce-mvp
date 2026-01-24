@@ -3,9 +3,12 @@ package com.ecommerce.core.infrastructure;
 import com.ecommerce.core.application.ICommand;
 import com.ecommerce.core.application.ICommandBus;
 import tools.jackson.databind.ObjectMapper;
+import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.CompletableFuture;
 
 public class RabbitMQCommandBus implements ICommandBus {
@@ -27,7 +30,14 @@ public class RabbitMQCommandBus implements ICommandBus {
                     Channel channel = connection.createChannel()) {
                 channel.queueDeclare(queueName, true, false, false, null);
                 byte[] message = objectMapper.writeValueAsBytes(command);
-                channel.basicPublish("", queueName, null, message);
+
+                Map<String, Object> headers = new HashMap<>();
+                headers.put("X-Message-Type", command.getClass().getSimpleName());
+                AMQP.BasicProperties props = new AMQP.BasicProperties.Builder()
+                        .headers(headers)
+                        .build();
+
+                channel.basicPublish("", queueName, props, message);
             } catch (Exception e) {
                 throw new RuntimeException("Failed to send command to RabbitMQ", e);
             }

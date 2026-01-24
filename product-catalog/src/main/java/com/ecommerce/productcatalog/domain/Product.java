@@ -1,53 +1,74 @@
 package com.ecommerce.productcatalog.domain;
 
 import com.ecommerce.core.domain.BaseAggregate;
-import java.util.UUID;
 
-public class Product extends BaseAggregate<UUID> {
-    private String name;
-    private String sku;
-    private double price;
-    private String description;
+public class Product extends BaseAggregate<ProductId> {
+    private Sku sku;
+    private ProductName name;
+    private Price price;
+    private ProductDescription description;
+    private boolean isActive;
 
-    private Product(UUID id, String name, String sku, double price, String description) {
-        this.id = id;
-        this.name = name;
-        this.sku = sku;
-        this.price = price;
-        this.description = description;
+    public Product() {
+        // Required for Jackson
     }
 
-    public static Product create(String name, String sku, double price, String description) {
-        if (price < 0)
-            throw new IllegalArgumentException("Price cannot be negative");
-        Product product = new Product(UUID.randomUUID(), name, sku, price, description);
-        product.addEvent(new ProductCreatedEvent(product.id, name, sku, price));
+    private Product(ProductId id, Sku sku, ProductName name, Price price, ProductDescription description) {
+        this.id = id;
+        this.sku = sku;
+        this.name = name;
+        this.price = price;
+        this.description = description;
+        this.isActive = false;
+    }
+
+    public static Product create(Sku sku, ProductName name, Price price, ProductDescription description) {
+        ProductId id = ProductId.generate();
+        Product product = new Product(id, sku, name, price, description);
+        product.addEvent(new ProductCreated(id, sku, name, price, description));
         return product;
     }
 
-    public void updateDetails(String name, double price, String description) {
-        if (price < 0)
-            throw new IllegalArgumentException("Price cannot be negative");
+    public void updateDetails(ProductName name, ProductDescription description) {
         this.name = name;
-        this.price = price;
         this.description = description;
-        addEvent(new ProductUpdatedEvent(this.id, name, price));
+        addEvent(new ProductDetailsUpdated(this.id, name, description));
     }
 
-    // Getters for state persistence
-    public String getName() {
-        return name;
+    public void changePrice(Price newPrice) {
+        Price oldPrice = this.price;
+        this.price = newPrice;
+        addEvent(new ProductPriceChanged(this.id, oldPrice, newPrice));
     }
 
-    public String getSku() {
+    public void activate() {
+        this.isActive = true;
+        addEvent(new ProductActivated(this.id));
+    }
+
+    public void deactivate() {
+        this.isActive = false;
+        addEvent(new ProductDeactivated(this.id));
+    }
+
+    // Getters for persistence
+    public Sku getSku() {
         return sku;
     }
 
-    public double getPrice() {
+    public ProductName getName() {
+        return name;
+    }
+
+    public Price getPrice() {
         return price;
     }
 
-    public String getDescription() {
+    public ProductDescription getDescription() {
         return description;
+    }
+
+    public boolean isActive() {
+        return isActive;
     }
 }

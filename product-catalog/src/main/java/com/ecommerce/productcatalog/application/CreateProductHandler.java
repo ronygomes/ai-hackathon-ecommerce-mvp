@@ -3,25 +3,28 @@ package com.ecommerce.productcatalog.application;
 import com.ecommerce.core.application.ICommandHandler;
 import com.ecommerce.core.infrastructure.IRepository;
 import com.ecommerce.core.messaging.IMessageBus;
-import com.ecommerce.productcatalog.domain.Product;
+import com.ecommerce.productcatalog.domain.*;
 import com.google.inject.Inject;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-public class CreateProductHandler implements ICommandHandler<CreateProductCommand, UUID> {
-    private final IRepository<Product, UUID> repository;
+public class CreateProductHandler implements ICommandHandler<CreateProductCommand, ProductId> {
+    private final IRepository<Product, ProductId> repository;
     private final IMessageBus messageBus;
 
     @Inject
-    public CreateProductHandler(IRepository<Product, UUID> repository, IMessageBus messageBus) {
+    public CreateProductHandler(IRepository<Product, ProductId> repository, IMessageBus messageBus) {
         this.repository = repository;
         this.messageBus = messageBus;
     }
 
     @Override
-    public CompletableFuture<UUID> handle(CreateProductCommand command) {
+    public CompletableFuture<ProductId> handle(CreateProductCommand command) {
         return CompletableFuture.supplyAsync(() -> {
-            Product product = Product.create(command.name(), command.sku(), command.price(), command.description());
+            Product product = Product.create(
+                    new Sku(command.sku()),
+                    new ProductName(command.name()),
+                    new Price(command.price()),
+                    new ProductDescription(command.description()));
             return product;
         }).thenCompose(product -> repository.save(product)
                 .thenCompose(v -> messageBus.publish(product.getUncommittedEvents()))

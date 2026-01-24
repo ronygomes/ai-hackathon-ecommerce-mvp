@@ -12,8 +12,8 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-public abstract class BaseMongoRepository<TAggregate extends IAggregateRoot<UUID>>
-        implements IRepository<TAggregate, UUID> {
+public abstract class BaseMongoRepository<TAggregate extends IAggregateRoot<TId>, TId>
+        implements IRepository<TAggregate, TId> {
     protected final MongoCollection<Document> collection;
     protected final ObjectMapper objectMapper;
     protected final Class<TAggregate> aggregateClass;
@@ -27,7 +27,7 @@ public abstract class BaseMongoRepository<TAggregate extends IAggregateRoot<UUID
     }
 
     @Override
-    public CompletableFuture<Optional<TAggregate>> getById(UUID id) {
+    public CompletableFuture<Optional<TAggregate>> getById(TId id) {
         return CompletableFuture.supplyAsync(() -> {
             Document doc = collection.find(Filters.eq("_id", id.toString())).first();
             if (doc == null)

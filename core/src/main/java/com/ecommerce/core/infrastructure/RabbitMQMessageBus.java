@@ -3,10 +3,13 @@ package com.ecommerce.core.infrastructure;
 import com.ecommerce.core.domain.IDomainEvent;
 import com.ecommerce.core.messaging.IMessageBus;
 import tools.jackson.databind.ObjectMapper;
+import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.CompletableFuture;
 
 public class RabbitMQMessageBus implements IMessageBus {
@@ -29,7 +32,14 @@ public class RabbitMQMessageBus implements IMessageBus {
                 channel.exchangeDeclare(exchangeName, "fanout", true);
                 for (IDomainEvent event : events) {
                     byte[] message = objectMapper.writeValueAsBytes(event);
-                    channel.basicPublish(exchangeName, "", null, message);
+
+                    Map<String, Object> headers = new HashMap<>();
+                    headers.put("X-Message-Type", event.getClass().getSimpleName());
+                    AMQP.BasicProperties props = new AMQP.BasicProperties.Builder()
+                            .headers(headers)
+                            .build();
+
+                    channel.basicPublish(exchangeName, "", props, message);
                 }
             } catch (Exception e) {
                 throw new RuntimeException("Failed to publish events to RabbitMQ", e);

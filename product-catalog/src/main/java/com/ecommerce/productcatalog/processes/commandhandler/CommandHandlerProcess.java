@@ -4,9 +4,9 @@ import com.ecommerce.core.application.ICommandHandler;
 import com.ecommerce.core.infrastructure.MongoClientProvider;
 import com.ecommerce.core.infrastructure.IRepository;
 import com.ecommerce.core.messaging.IMessageBus;
-import com.ecommerce.productcatalog.application.CreateProductCommand;
-import com.ecommerce.productcatalog.application.CreateProductHandler;
+import com.ecommerce.productcatalog.application.*;
 import com.ecommerce.productcatalog.domain.Product;
+import com.ecommerce.productcatalog.domain.ProductId;
 import com.ecommerce.productcatalog.infrastructure.MongoProductRepository;
 import com.ecommerce.productcatalog.infrastructure.ProductCatalogMessageBus;
 import tools.jackson.databind.ObjectMapper;
@@ -16,7 +16,8 @@ import com.google.inject.Injector;
 import com.google.inject.TypeLiteral;
 import com.mongodb.client.MongoClient;
 import com.rabbitmq.client.*;
-import java.util.UUID;
+
+import java.util.Map;
 
 public class CommandHandlerProcess {
     public static void main(String[] args) throws Exception {
@@ -31,20 +32,51 @@ public class CommandHandlerProcess {
         channel.queueDeclare(queueName, true, false, false, null);
 
         ObjectMapper objectMapper = new ObjectMapper();
-        ICommandHandler<CreateProductCommand, UUID> createHandler = injector.getInstance(CreateProductHandler.class);
+        ICommandHandler<CreateProductCommand, ProductId> createHandler = injector
+                .getInstance(CreateProductHandler.class);
+        ICommandHandler<UpdateProductDetailsCommand, Void> updateHandler = injector
+                .getInstance(UpdateProductDetailsHandler.class);
+        ICommandHandler<ChangeProductPriceCommand, Void> priceHandler = injector
+                .getInstance(ChangeProductPriceHandler.class);
+        ICommandHandler<ActivateProductCommand, Void> activateHandler = injector
+                .getInstance(ActivateProductHandler.class);
+        ICommandHandler<DeactivateProductCommand, Void> deactivateHandler = injector
+                .getInstance(DeactivateProductHandler.class);
 
         System.out.println("CommandHandler waiting for messages on " + queueName);
 
         DeliverCallback deliverCallback = (consumerTag, delivery) -> {
             String message = new String(delivery.getBody(), "UTF-8");
+            AMQP.BasicProperties props = delivery.getProperties();
+            Map<String, Object> headers = props.getHeaders();
+            String messageType = headers != null && headers.containsKey("X-Message-Type")
+                    ? headers.get("X-Message-Type").toString()
+                    : "";
+
             try {
-                CreateProductCommand command = objectMapper.readValue(message, CreateProductCommand.class);
-                createHandler.handle(command).get(); // Wait for completion in this consumer thread
+                if ("CreateProductCommand".equals(messageType)) {
+                    CreateProductCommand command = objectMapper.readValue(message, CreateProductCommand.class);
+                    createHandler.handle(command).get();
+                } else if ("UpdateProductDetailsCommand".equals(messageType)) {
+                    UpdateProductDetailsCommand command = objectMapper.readValue(message,
+                            UpdateProductDetailsCommand.class);
+                    updateHandler.handle(command).get();
+                } else if ("ChangeProductPriceCommand".equals(messageType)) {
+                    ChangeProductPriceCommand command = objectMapper.readValue(message,
+                            ChangeProductPriceCommand.class);
+                    priceHandler.handle(command).get();
+                } else if ("ActivateProductCommand".equals(messageType)) {
+                    ActivateProductCommand command = objectMapper.readValue(message, ActivateProductCommand.class);
+                    activateHandler.handle(command).get();
+                } else if ("DeactivateProductCommand".equals(messageType)) {
+                    DeactivateProductCommand command = objectMapper.readValue(message, DeactivateProductCommand.class);
+                    deactivateHandler.handle(command).get();
+                } else {
+                    System.err.println("Unknown command type: " + messageType);
+                }
                 channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
             } catch (Exception e) {
                 e.printStackTrace();
-                // channel.basicNack(delivery.getEnvelope().getDeliveryTag(), false, true); //
-                // Basic retry
             }
         };
 
@@ -56,7 +88,7 @@ public class CommandHandlerProcess {
         @Override
         protected void configure() {
             bind(MongoClient.class).toProvider(MongoClientProvider.class);
-            bind(new TypeLiteral<IRepository<Product, UUID>>() {
+            bind(new TypeLiteral<IRepository<Product, ProductId>>() {
             }).to(MongoProductRepository.class);
             bind(IMessageBus.class).to(ProductCatalogMessageBus.class);
         }
