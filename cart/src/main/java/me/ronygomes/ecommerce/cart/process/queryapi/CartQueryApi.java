@@ -7,40 +7,46 @@ import com.mongodb.client.MongoDatabase;
 import org.bson.Document;
 import tools.jackson.databind.ObjectMapper;
 
-import static spark.Spark.*;
+import io.javalin.Javalin;
+import org.bson.Document;
+import tools.jackson.databind.ObjectMapper;
+
 import static com.mongodb.client.model.Filters.eq;
 
 public class CartQueryApi {
     public static void main(String[] args) {
-        port(8085);
+        Javalin app = Javalin.create(config -> {
+        }).start(8085);
 
         MongoClient mongoClient = new MongoClientProvider().get();
         MongoDatabase database = mongoClient.getDatabase("aihackathon");
         MongoCollection<Document> cartViewCollection = database.getCollection("cart_view");
 
         // GET /cart?guestToken=...
-        get("/cart", (req, res) -> {
-            String guestToken = req.queryParams("guestToken");
+        app.get("/cart", ctx -> {
+            String guestToken = ctx.queryParam("guestToken");
             if (guestToken == null || guestToken.isBlank()) {
-                res.status(400);
-                return "{\"error\": \"guestToken query parameter missing\"}";
+                ctx.status(400);
+                ctx.result("{\"error\": \"guestToken query parameter missing\"}");
+                return;
             }
 
             Document cart = cartViewCollection.find(eq("guestToken", guestToken)).first();
 
             if (cart == null) {
-                res.status(404);
-                return "{\"error\": \"Cart not found\"}";
+                ctx.status(404);
+                ctx.result("{\"error\": \"Cart not found\"}");
+                return;
             }
 
             cart.remove("_id");
-            res.type("application/json");
-            return new ObjectMapper().writeValueAsString(cart);
+            ctx.contentType("application/json");
+            ctx.result(new ObjectMapper().writeValueAsString(cart));
         });
 
-        exception(Exception.class, (e, req, res) -> {
-            res.status(500);
-            res.body("{\"error\": \"" + e.getMessage() + "\"}");
+        app.exception(Exception.class, (e, ctx) -> {
+            ctx.status(500);
+            ctx.result("{\"error\": \"" + e.getMessage() + "\"}");
         });
     }
 }

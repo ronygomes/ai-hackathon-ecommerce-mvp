@@ -1,6 +1,6 @@
 package me.ronygomes.ecommerce.ordering.process.queryapi;
 
-import spark.Spark;
+import io.javalin.Javalin;
 import tools.jackson.databind.ObjectMapper;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -12,24 +12,25 @@ import java.util.List;
 
 public class OrderingQueryApi {
     public static void main(String[] args) {
-        Spark.port(8087);
+        Javalin app = Javalin.create(config -> {
+        }).start(8087);
         MongoClient mongoClient = new MongoClientProvider().get();
         MongoCollection<Document> collection = mongoClient.getDatabase("aihackathon")
                 .getCollection("order_projections");
         ObjectMapper objectMapper = new ObjectMapper();
 
-        Spark.get("/orders/:guestToken", (req, res) -> {
-            String guestToken = req.params(":guestToken");
+        app.get("/orders/{guestToken}", ctx -> {
+            String guestToken = ctx.pathParam("guestToken");
             List<Document> orders = collection.find(Filters.eq("guestToken", guestToken)).into(new ArrayList<>());
-            res.type("application/json");
-            return objectMapper.writeValueAsString(orders);
+            ctx.contentType("application/json");
+            ctx.result(objectMapper.writeValueAsString(orders));
         });
 
-        Spark.get("/orders/id/:orderId", (req, res) -> {
-            String orderId = req.params(":orderId");
+        app.get("/orders/id/{orderId}", ctx -> {
+            String orderId = ctx.pathParam("orderId");
             Document order = collection.find(Filters.eq("_id", orderId)).first();
-            res.type("application/json");
-            return order != null ? objectMapper.writeValueAsString(order) : "{}";
+            ctx.contentType("application/json");
+            ctx.result(order != null ? objectMapper.writeValueAsString(order) : "{}");
         });
     }
 }

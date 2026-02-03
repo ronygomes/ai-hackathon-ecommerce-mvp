@@ -10,12 +10,19 @@ import tools.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.List;
 
-import static spark.Spark.*;
+import io.javalin.Javalin;
+import org.bson.Document;
+import tools.jackson.databind.ObjectMapper;
+
+import java.util.ArrayList;
+import java.util.List;
+
 import static com.mongodb.client.model.Filters.eq;
 
 public class QueryApi {
     public static void main(String[] args) {
-        port(8081);
+        Javalin app = Javalin.create(config -> {
+        }).start(8081);
 
         MongoClient mongoClient = new MongoClientProvider().get();
         MongoDatabase database = mongoClient.getDatabase("aihackathon");
@@ -25,7 +32,7 @@ public class QueryApi {
         MongoCollection<Document> detailViewCollection = database.getCollection("product_detail_view");
 
         // GET /products uses ProductListView
-        get("/products", (req, res) -> {
+        app.get("/products", ctx -> {
             List<Document> products = new ArrayList<>();
             listViewCollection.find().into(products);
 
@@ -35,30 +42,31 @@ public class QueryApi {
                 return p;
             }).toList();
 
-            res.type("application/json");
-            return new ObjectMapper().writeValueAsString(response);
+            ctx.contentType("application/json");
+            ctx.result(new ObjectMapper().writeValueAsString(response));
         });
 
         // GET /products/:id uses ProductDetailView
-        get("/products/:id", (req, res) -> {
-            String id = req.params(":id");
+        app.get("/products/{id}", ctx -> {
+            String id = ctx.pathParam("id");
             Document product = detailViewCollection.find(eq("_id", id)).first();
 
             if (product == null) {
-                res.status(404);
-                return "{\"error\": \"Product not found\"}";
+                ctx.status(404);
+                ctx.result("{\"error\": \"Product not found\"}");
+                return;
             }
 
             // Redact _id for the response
             product.remove("_id");
 
-            res.type("application/json");
-            return new ObjectMapper().writeValueAsString(product);
+            ctx.contentType("application/json");
+            ctx.result(new ObjectMapper().writeValueAsString(product));
         });
 
-        exception(Exception.class, (e, req, res) -> {
-            res.status(500);
-            res.body("{\"error\": \"" + e.getMessage() + "\"}");
+        app.exception(Exception.class, (e, ctx) -> {
+            ctx.status(500);
+            ctx.result("{\"error\": \"" + e.getMessage() + "\"}");
         });
     }
 }
