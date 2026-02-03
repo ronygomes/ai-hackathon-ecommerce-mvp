@@ -6,8 +6,11 @@ import jakarta.inject.Inject;
 import me.ronygomes.ecommerce.core.application.CommandBus;
 import me.ronygomes.ecommerce.productcatalog.application.CreateProductCommand;
 import me.ronygomes.ecommerce.productcatalog.infrastructure.CommandApiModule;
+import org.eclipse.jetty.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static me.ronygomes.ecommerce.core.infrastructure.WebHelper.registerDefaultExceptionHandler;
 
 public class CommandApi {
 
@@ -21,27 +24,23 @@ public class CommandApi {
         this.commandBus = commandBus;
     }
 
-    private void run() {
-        Javalin app = Javalin.create().start(PORT);
+    private void run(Javalin app) {
 
         app.post("/products", ctx -> {
             CreateProductCommand command = ctx.bodyAsClass(CreateProductCommand.class);
-            log.info("Received command: {}", command);
+            log.trace("Received command: {}", command);
             commandBus.send(command);
-            ctx.status(202);
-            ctx.result("{\"status\": \"Accepted\"}");
+            ctx.status(HttpStatus.ACCEPTED_202);
         });
 
-        app.exception(Exception.class, (e, ctx) -> {
-            log.error("Error processing command", e);
-            ctx.status(500);
-            ctx.result("{\"error\": \"" + e.getMessage() + "\"}");
-        });
+        registerDefaultExceptionHandler(app, log);
     }
 
     static void main() {
+        Javalin app = Javalin.create().start(PORT);
+
         Guice.createInjector(new CommandApiModule())
                 .getInstance(CommandApi.class)
-                .run();
+                .run(app);
     }
 }
