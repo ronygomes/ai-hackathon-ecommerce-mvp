@@ -1,6 +1,7 @@
 package me.ronygomes.ecommerce.productcatalog.domain;
 
 import me.ronygomes.ecommerce.core.domain.DomainEvent;
+
 import java.util.UUID;
 
 public record ProductActivated(

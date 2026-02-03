@@ -1,15 +1,16 @@
 package me.ronygomes.ecommerce.core.infrastructure;
 
-import me.ronygomes.ecommerce.core.domain.DomainEvent;
-import me.ronygomes.ecommerce.core.messaging.MessageBus;
-import tools.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
+import me.ronygomes.ecommerce.core.domain.DomainEvent;
+import me.ronygomes.ecommerce.core.messaging.MessageBus;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
 import java.util.concurrent.CompletableFuture;
 
 public class RabbitMQMessageBus implements MessageBus {

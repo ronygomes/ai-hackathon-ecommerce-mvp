@@ -2,4 +2,6 @@
 !.gitignore
 build
 **/bin
+out/
+**/out
 

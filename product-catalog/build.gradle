@@ -1,0 +1,14 @@
+plugins {
+    id 'java'
+}
+
+dependencies {
+    implementation project(':core')
+    implementation project(':checkout-saga')
+}
+
+tasks.register('runCommandApi', JavaExec) {
+    dependsOn 'classes'
+    mainClass = 'me.ronygomes.ecommerce.productcatalog.presentation.commandapi.CommandApi'
+    classpath = sourceSets.main.runtimeClasspath
+}

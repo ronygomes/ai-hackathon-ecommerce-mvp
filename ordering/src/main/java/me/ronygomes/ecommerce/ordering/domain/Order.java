@@ -1,8 +1,9 @@
 package me.ronygomes.ecommerce.ordering.domain;
 
-import me.ronygomes.ecommerce.core.domain.BaseAggregate;
 import me.rongyomes.ecommerce.checkout.saga.message.event.CheckoutRequested;
 import me.rongyomes.ecommerce.checkout.saga.message.event.OrderCreated;
+import me.ronygomes.ecommerce.core.domain.BaseAggregate;
+
 import java.util.List;
 
 public class Order extends BaseAggregate<OrderId> {

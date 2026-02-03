@@ -1,7 +1,8 @@
 package me.ronygomes.ecommerce.cart.domain;
 
-import me.ronygomes.ecommerce.core.domain.BaseAggregate;
 import me.rongyomes.ecommerce.checkout.saga.message.event.CartCleared;
+import me.ronygomes.ecommerce.core.domain.BaseAggregate;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;

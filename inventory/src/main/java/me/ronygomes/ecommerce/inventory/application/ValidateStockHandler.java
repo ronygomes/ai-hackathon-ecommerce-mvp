@@ -1,14 +1,14 @@
 package me.ronygomes.ecommerce.inventory.application;
 
+import com.google.inject.Inject;
 import me.ronygomes.ecommerce.core.application.CommandHandler;
 import me.ronygomes.ecommerce.core.infrastructure.Repository;
-import com.google.inject.Inject;
 import me.ronygomes.ecommerce.inventory.domain.InventoryItem;
 import me.ronygomes.ecommerce.inventory.domain.ProductId;
 import me.ronygomes.ecommerce.inventory.domain.Quantity;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 public class ValidateStockHandler implements CommandHandler<ValidateStockCommand, Boolean> {

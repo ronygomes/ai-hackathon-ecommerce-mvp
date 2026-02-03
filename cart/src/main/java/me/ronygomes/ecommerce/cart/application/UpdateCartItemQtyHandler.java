@@ -1,13 +1,14 @@
 package me.ronygomes.ecommerce.cart.application;
 
-import me.ronygomes.ecommerce.core.application.CommandHandler;
-import me.ronygomes.ecommerce.core.messaging.MessageBus;
+import com.google.inject.Inject;
 import me.ronygomes.ecommerce.cart.domain.GuestToken;
 import me.ronygomes.ecommerce.cart.domain.ProductId;
 import me.ronygomes.ecommerce.cart.domain.Quantity;
 import me.ronygomes.ecommerce.cart.domain.ShoppingCart;
 import me.ronygomes.ecommerce.cart.infrastructure.CartRepository;
-import com.google.inject.Inject;
+import me.ronygomes.ecommerce.core.application.CommandHandler;
+import me.ronygomes.ecommerce.core.messaging.MessageBus;
+
 import java.util.concurrent.CompletableFuture;
 
 public class UpdateCartItemQtyHandler implements CommandHandler<UpdateCartItemQtyCommand, Void> {

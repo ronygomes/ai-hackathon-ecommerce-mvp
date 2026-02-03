@@ -1,8 +1,9 @@
 package me.ronygomes.ecommerce.ordering.domain;
 
 import me.ronygomes.ecommerce.core.domain.DomainEvent;
-import java.util.UUID;
+
 import java.util.List;
+import java.util.UUID;
 
 public record OrderSubmitted(UUID orderId, String orderNumber, String guestToken, List<OrderLineItem> items,
         OrderTotals totals, String eventId, long timestamp) implements DomainEvent {

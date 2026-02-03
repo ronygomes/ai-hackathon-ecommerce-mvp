@@ -1,9 +1,9 @@
 package me.ronygomes.ecommerce.core.infrastructure;
 
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoClients;
 import com.google.inject.Provider;
 import com.google.inject.Singleton;
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoClients;
 
 @Singleton
 public class MongoClientProvider implements Provider<MongoClient> {

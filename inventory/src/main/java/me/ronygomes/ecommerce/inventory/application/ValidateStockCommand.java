@@ -1,6 +1,7 @@
 package me.ronygomes.ecommerce.inventory.application;
 
 import me.ronygomes.ecommerce.core.application.Command;
+
 import java.util.List;
 import java.util.UUID;
 

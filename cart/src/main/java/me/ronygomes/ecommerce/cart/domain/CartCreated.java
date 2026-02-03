@@ -1,6 +1,7 @@
 package me.ronygomes.ecommerce.cart.domain;
 
 import me.ronygomes.ecommerce.core.domain.DomainEvent;
+
 import java.util.UUID;
 
 public record CartCreated(UUID cartId, String guestToken, String eventId, long timestamp) implements DomainEvent {

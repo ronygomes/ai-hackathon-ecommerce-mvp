@@ -1,8 +1,9 @@
 package me.ronygomes.ecommerce.ordering.domain;
 
 import me.ronygomes.ecommerce.core.domain.DomainEvent;
-import java.util.UUID;
+
 import java.util.List;
+import java.util.UUID;
 
 public record StockCommitRequested(UUID orderId, List<StockItem> items, String eventId, long timestamp)
         implements DomainEvent {

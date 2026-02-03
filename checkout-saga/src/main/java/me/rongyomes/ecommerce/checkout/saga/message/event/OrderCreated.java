@@ -1,6 +1,7 @@
 package me.rongyomes.ecommerce.checkout.saga.message.event;
 
 import me.ronygomes.ecommerce.core.domain.DomainEvent;
+
 import java.util.UUID;
 
 public record OrderCreated(

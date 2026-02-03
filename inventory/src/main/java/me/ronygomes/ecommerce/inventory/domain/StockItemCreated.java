@@ -1,6 +1,7 @@
 package me.ronygomes.ecommerce.inventory.domain;
 
 import me.ronygomes.ecommerce.core.domain.DomainEvent;
+
 import java.util.UUID;
 
 public record StockItemCreated(UUID productId, int initialQty, String eventId, long timestamp) implements DomainEvent {

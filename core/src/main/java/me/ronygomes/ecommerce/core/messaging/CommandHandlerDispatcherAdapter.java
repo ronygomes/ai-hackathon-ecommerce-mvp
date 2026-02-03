@@ -2,6 +2,7 @@ package me.ronygomes.ecommerce.core.messaging;
 
 import me.ronygomes.ecommerce.core.application.Command;
 import me.ronygomes.ecommerce.core.application.CommandHandler;
+
 import java.util.concurrent.CompletableFuture;
 
 public class CommandHandlerDispatcherAdapter<TCommand extends Command<TResult>, TResult>

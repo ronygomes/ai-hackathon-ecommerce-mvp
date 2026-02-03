@@ -1,7 +1,7 @@
 package me.ronygomes.ecommerce.cart.infrastructure;
 
-import me.ronygomes.ecommerce.core.infrastructure.RabbitMQMessageBus;
 import com.google.inject.Singleton;
+import me.ronygomes.ecommerce.core.infrastructure.RabbitMQMessageBus;
 
 @Singleton
 public class CartMessageBus extends RabbitMQMessageBus {

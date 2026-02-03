@@ -1,13 +1,14 @@
 package me.ronygomes.ecommerce.cart.infrastructure;
 
-import me.ronygomes.ecommerce.core.infrastructure.BaseMongoRepository;
-import me.ronygomes.ecommerce.cart.domain.ShoppingCart;
-import me.ronygomes.ecommerce.cart.domain.CartId;
-import me.ronygomes.ecommerce.cart.domain.GuestToken;
+import com.google.inject.Inject;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
-import com.google.inject.Inject;
+import me.ronygomes.ecommerce.cart.domain.CartId;
+import me.ronygomes.ecommerce.cart.domain.GuestToken;
+import me.ronygomes.ecommerce.cart.domain.ShoppingCart;
+import me.ronygomes.ecommerce.core.infrastructure.BaseMongoRepository;
 import org.bson.Document;
+
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 

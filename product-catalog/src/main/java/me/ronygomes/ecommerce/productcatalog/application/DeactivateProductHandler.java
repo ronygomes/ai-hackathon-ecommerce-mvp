@@ -1,9 +1,9 @@
 package me.ronygomes.ecommerce.productcatalog.application;
 
+import com.google.inject.Inject;
 import me.ronygomes.ecommerce.core.application.CommandHandler;
 import me.ronygomes.ecommerce.core.infrastructure.Repository;
 import me.ronygomes.ecommerce.core.messaging.MessageBus;
-import com.google.inject.Inject;
 import me.ronygomes.ecommerce.productcatalog.domain.Product;
 import me.ronygomes.ecommerce.productcatalog.domain.ProductId;
 

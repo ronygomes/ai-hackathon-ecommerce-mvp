@@ -3,6 +3,7 @@ package me.ronygomes.ecommerce.ordering.application;
 import me.ronygomes.ecommerce.core.application.Command;
 import me.ronygomes.ecommerce.ordering.domain.CustomerInfo;
 import me.ronygomes.ecommerce.ordering.domain.ShippingAddress;
+
 import java.util.List;
 import java.util.UUID;
 

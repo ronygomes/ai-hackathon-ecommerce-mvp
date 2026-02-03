@@ -1,6 +1,7 @@
 package me.ronygomes.ecommerce.core.messaging;
 
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;

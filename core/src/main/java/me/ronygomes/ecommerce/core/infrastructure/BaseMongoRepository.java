@@ -1,13 +1,14 @@
 package me.ronygomes.ecommerce.core.infrastructure;
 
-import me.ronygomes.ecommerce.core.domain.AggregateRoot;
-import tools.jackson.databind.ObjectMapper;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.ReplaceOptions;
+import me.ronygomes.ecommerce.core.domain.AggregateRoot;
 import org.bson.Document;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 

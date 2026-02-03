@@ -1,12 +1,13 @@
 package me.ronygomes.ecommerce.ordering.application;
 
+import com.google.inject.Inject;
+import me.rongyomes.ecommerce.checkout.saga.message.command.MarkCheckoutCompletedCommand;
 import me.ronygomes.ecommerce.core.application.CommandHandler;
 import me.ronygomes.ecommerce.core.messaging.MessageBus;
 import me.ronygomes.ecommerce.ordering.domain.Order;
 import me.ronygomes.ecommerce.ordering.domain.OrderId;
 import me.ronygomes.ecommerce.ordering.infrastructure.OrderRepository;
-import me.rongyomes.ecommerce.checkout.saga.message.command.MarkCheckoutCompletedCommand;
-import com.google.inject.Inject;
+
 import java.util.concurrent.CompletableFuture;
 
 public class MarkCheckoutCompletedHandler implements CommandHandler<MarkCheckoutCompletedCommand, Void> {

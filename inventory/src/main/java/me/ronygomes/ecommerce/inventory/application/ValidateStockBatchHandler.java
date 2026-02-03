@@ -1,11 +1,11 @@
 package me.ronygomes.ecommerce.inventory.application;
 
+import com.google.inject.Inject;
+import me.rongyomes.ecommerce.checkout.saga.message.command.ValidateStockBatchCommand;
+import me.rongyomes.ecommerce.checkout.saga.message.event.StockBatchValidated;
 import me.ronygomes.ecommerce.core.application.CommandHandler;
 import me.ronygomes.ecommerce.core.infrastructure.Repository;
 import me.ronygomes.ecommerce.core.messaging.MessageBus;
-import me.rongyomes.ecommerce.checkout.saga.message.command.ValidateStockBatchCommand;
-import me.rongyomes.ecommerce.checkout.saga.message.event.StockBatchValidated;
-import com.google.inject.Inject;
 import me.ronygomes.ecommerce.inventory.domain.InventoryItem;
 import me.ronygomes.ecommerce.inventory.domain.ProductId;
 import me.ronygomes.ecommerce.inventory.domain.Quantity;

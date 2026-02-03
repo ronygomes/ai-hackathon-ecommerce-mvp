@@ -1,10 +1,10 @@
 package me.ronygomes.ecommerce.cart.application;
 
-import me.ronygomes.ecommerce.core.application.CommandHandler;
-import me.ronygomes.ecommerce.core.messaging.MessageBus;
+import com.google.inject.Inject;
 import me.ronygomes.ecommerce.cart.domain.*;
 import me.ronygomes.ecommerce.cart.infrastructure.CartRepository;
-import com.google.inject.Inject;
+import me.ronygomes.ecommerce.core.application.CommandHandler;
+import me.ronygomes.ecommerce.core.messaging.MessageBus;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;

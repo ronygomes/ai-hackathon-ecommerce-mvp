@@ -1,7 +1,8 @@
 package me.ronygomes.ecommerce.inventory.domain;
 
-import me.ronygomes.ecommerce.core.domain.BaseAggregate;
 import me.rongyomes.ecommerce.checkout.saga.message.event.StockDeductedForOrder;
+import me.ronygomes.ecommerce.core.domain.BaseAggregate;
+
 import java.util.UUID;
 
 public class InventoryItem extends BaseAggregate<ProductId> {

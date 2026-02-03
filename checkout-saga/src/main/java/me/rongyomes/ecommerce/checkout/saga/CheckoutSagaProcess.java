@@ -1,11 +1,11 @@
 package me.rongyomes.ecommerce.checkout.saga;
 
-import me.ronygomes.ecommerce.core.application.CommandBus;
-import me.ronygomes.ecommerce.core.infrastructure.RabbitMQCommandBus;
+import com.rabbitmq.client.*;
 import me.rongyomes.ecommerce.checkout.saga.message.command.*;
 import me.rongyomes.ecommerce.checkout.saga.message.event.*;
-import tools.jackson.databind.ObjectMapper;
-import com.rabbitmq.client.*;
+import me.ronygomes.ecommerce.core.application.CommandBus;
+import me.ronygomes.ecommerce.core.infrastructure.RabbitMQCommandBus;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.Map;
 import java.util.UUID;
@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 public class CheckoutSagaProcess {
     private static final Map<UUID, SagaState> activeSagas = new ConcurrentHashMap<>();
 
-    public static void main(String[] args) throws Exception {
+    static void main() throws Exception {
         ConnectionFactory factory = new ConnectionFactory();
         factory.setHost("localhost");
         Connection connection = factory.newConnection();

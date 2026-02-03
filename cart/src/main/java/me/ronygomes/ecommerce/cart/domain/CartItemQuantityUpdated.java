@@ -1,6 +1,7 @@
 package me.ronygomes.ecommerce.cart.domain;
 
 import me.ronygomes.ecommerce.core.domain.DomainEvent;
+
 import java.util.UUID;
 
 public record CartItemQuantityUpdated(UUID cartId, UUID productId, int oldQty, int newQty, String eventId,

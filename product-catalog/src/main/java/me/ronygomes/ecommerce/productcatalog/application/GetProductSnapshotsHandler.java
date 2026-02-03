@@ -1,19 +1,19 @@
 package me.ronygomes.ecommerce.productcatalog.application;
 
+import com.google.inject.Inject;
+import me.rongyomes.ecommerce.checkout.saga.message.command.GetProductSnapshotsCommand;
+import me.rongyomes.ecommerce.checkout.saga.message.event.ProductSnapshotsProvided;
 import me.ronygomes.ecommerce.core.application.CommandHandler;
 import me.ronygomes.ecommerce.core.infrastructure.Repository;
 import me.ronygomes.ecommerce.core.messaging.MessageBus;
-import me.rongyomes.ecommerce.checkout.saga.message.command.GetProductSnapshotsCommand;
-import me.rongyomes.ecommerce.checkout.saga.message.event.ProductSnapshotsProvided;
-import com.google.inject.Inject;
 import me.ronygomes.ecommerce.productcatalog.domain.Product;
 import me.ronygomes.ecommerce.productcatalog.domain.ProductId;
 
-import java.util.List;
 import java.util.ArrayList;
-import java.util.concurrent.CompletableFuture;
-import java.util.UUID;
+import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 public class GetProductSnapshotsHandler implements CommandHandler<GetProductSnapshotsCommand, Void> {
     private final Repository<Product, ProductId> repository;

@@ -1,13 +1,14 @@
 package me.ronygomes.ecommerce.ordering.infrastructure;
 
-import me.ronygomes.ecommerce.core.infrastructure.BaseMongoRepository;
-import me.ronygomes.ecommerce.ordering.domain.Order;
-import me.ronygomes.ecommerce.ordering.domain.OrderId;
-import me.ronygomes.ecommerce.ordering.domain.IdempotencyKey;
+import com.google.inject.Inject;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
-import com.google.inject.Inject;
+import me.ronygomes.ecommerce.core.infrastructure.BaseMongoRepository;
+import me.ronygomes.ecommerce.ordering.domain.IdempotencyKey;
+import me.ronygomes.ecommerce.ordering.domain.Order;
+import me.ronygomes.ecommerce.ordering.domain.OrderId;
 import org.bson.Document;
+
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
