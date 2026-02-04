@@ -1,5 +1,6 @@
 package me.ronygomes.ecommerce.core.infrastructure;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import io.javalin.Javalin;
 import org.eclipse.jetty.http.HttpStatus;
@@ -12,15 +13,27 @@ public class WebHelper {
                 "error": %s
             }""";
 
+    private static final String INVALID_JSON_ERROR_MESSAGE = "Invalid JSON Request";
     private static final String INVALID_FORMAT_ERROR_MESSAGE = "'%s' is not a valid %s type";
     private static final String DEFAULT_ERROR_MESSAGE = "The application has encountered an unknown error";
 
     public static void registerDefaultExceptionHandler(Javalin app, Logger log) {
+        app.exception(ValidationException.class, (e, ctx) -> {
+            ctx.status(HttpStatus.BAD_REQUEST_400);
+            ctx.result(ERROR_JSON_TEMPLATE.formatted(e.getMessage()));
+        });
+
         app.exception(InvalidFormatException.class, (e, ctx) -> {
             ctx.status(HttpStatus.BAD_REQUEST_400);
             ctx.result(ERROR_JSON_TEMPLATE.formatted(
                     INVALID_FORMAT_ERROR_MESSAGE.formatted(e.getValue(), e.getTargetType().getName())
             ));
+        });
+
+
+        app.exception(JsonParseException.class, (e, ctx) -> {
+            ctx.status(HttpStatus.BAD_REQUEST_400);
+            ctx.result(INVALID_JSON_ERROR_MESSAGE);
         });
 
         app.exception(Exception.class, (e, ctx) -> {
