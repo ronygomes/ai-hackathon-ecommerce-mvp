@@ -1,0 +1,34 @@
+Here is the detail of the Inventory Subsystem. Implement these similarly to productcatalog subsystem.
+Aggregate Root
+- InventoryItem (per ProductId)
+
+Value Objects
+- ProductId
+- Quantity (int >= 0)
+- AdjustmentReason (optional, admin-provided)
+
+Behaviors
+- SetStock(newQty, reason?) (admin)
+- EnsureAvailable(requestedQty) (validation helper)
+- DeductForOrder(orderId, qty) (atomic + idempotent per order)
+- If you later add cancel/return you’d add restore, but MVP explicitly does not.
+
+Key Invariants / Validation
+- StockQuantity never negative
+- Deduction must be atomic across items for a single order (handled by Ordering orchestration + Inventory command design)
+- Idempotency: same (orderId, productId) deduction cannot double-apply
+- Product must exist in Catalog and be Active (Inventory doesn’t own “active”; Ordering/Cart validate via Catalog)
+
+Commands
+- SetStockCommand { productId, newQty, reason? }
+- ValidateStockCommand { items: [ { productId, requestedQty } ] } (query-ish; can be read-side too)
+- DeductStockForOrderCommand { orderId, items: [ { productId, qty } ] }
+- Domain Events
+- StockItemCreated { productId, initialQty } (optional if created implicitly)
+- StockSet { productId, oldQty, newQty, reason?, changedBy }
+- StockDeductedForOrder { orderId, productId, qty, oldQty, newQty }
+- StockDeductionRejected { orderId, productId, requestedQty, availableQty, reason } (can be a failure event or returned as command result; choose one pattern)
+
+CQRS Read Models
+- StockAvailabilityView: (productId, availableQty, inStockFlag)
+- LowStockView (optional)

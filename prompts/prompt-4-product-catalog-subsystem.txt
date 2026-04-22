@@ -1,0 +1,38 @@
+Here is the detail of product-catalog Subsystem. Implement these. ProductCatalog Bounded Context
+Aggregate Root: Product
+Value Objects
+- ProductId
+- Sku
+- Price
+- ProductName
+- ProductDescription
+
+Behaviors (methods)
+- CreateProduct(sku, name, price, description)
+- UpdateDetails(name, description)
+- ChangePrice(newPrice)
+- Activate()
+- Deactivate()
+
+Key Invariants / Validation
+- SKU is unique and immutable after creation (MVP rule)
+- Price >= 0
+- Name required, min length (e.g., 2)
+- Only Active products can be sold/added/ordered (enforced by other contexts using Catalog read model)
+
+Commands
+- CreateProductCommand { sku, name, price, description? }
+- UpdateProductDetailsCommand { productId, name, description? }
+- ChangeProductPriceCommand { productId, newPrice }
+- ActivateProductCommand { productId }
+- DeactivateProductCommand { productId }
+
+Domain Events
+- ProductCreated { productId, sku, name, price, description? }
+- ProductDetailsUpdated { productId, name, description? }
+- ProductPriceChanged { productId, oldPrice, newPrice }
+- ProductActivated { productId }
+- ProductDeactivated { productId }
+- CQRS Read Models (projections)
+- ProductListView: (productId, name, price, isActive)
+- ProductDetailView: (sku, name, description, price, isActive)

@@ -1,8 +1,8 @@
 .*
 !.gitignore
+!.sdkmanrc
 build
 **/bin
 out/
 **/out
 logs/
-

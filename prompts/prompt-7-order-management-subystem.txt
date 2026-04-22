@@ -1,0 +1,62 @@
+Here is the detail of the OrderManagement Subsystem. Implement these similarly to product-catalog.
+
+Aggregate Root
+- Order
+
+Entities
+- OrderLineItem
+    - productId
+    - skuSnapshot
+    - nameSnapshot
+    - unitPriceSnapshot
+    - quantity
+    - lineTotal
+
+Value Objects
+- OrderId
+- OrderNumber
+- GuestToken
+- CustomerInfo (name, phone, email?)
+- ShippingAddress (line1, city, postalCode?, country)
+- Money
+- OrderTotals (subtotal, shippingFee=0, total)
+- IdempotencyKey
+
+Behaviors
+- PlaceOrderFromCart(cartSnapshot, productSnapshots, customerInfo, address, idempotencyKey)
+- MarkStockCommitted() (internal state marker after successful stock deduction)
+- FinalizeCreated() (final creation state)
+- No cancel/confirm behaviors in MVP.
+- Key Invariants / Validation
+- Order must be created only if:
+    - cart not empty
+    - all products active (Catalog)
+    - requested quantities available at commit time (Inventory strict validation)
+    - customer name + phone valid
+    - address line1 + city valid
+- Shipping fee is always 0
+- Payment method fixed to COD; PaymentStatus fixed to Pending
+- Idempotency: same idempotency key must not create multiple orders
+- If reused with different cart contents: reject IDEMPOTENCY_CONFLICT
+
+Commands
+- PlaceOrderCommand { guestToken, cartId, customerInfo, address, idempotencyKey }
+- Domain Events (Order stream)
+- OrderPlacementRequested { orderId, guestToken, cartId, idempotencyKey } (optional; some teams skip this)
+- OrderValidated { orderId }
+- OrderPriced { orderId, itemsPriced[], subtotal, shippingFee=0, total }
+- OrderCreated { orderId, orderNumber, guestToken, customerInfo, address, totals, paymentMethod=COD, paymentStatus=Pending }
+- OrderStockCommitRequested { orderId, items: [productId, qty] }
+- OrderStockCommitted { orderId }
+- OrderCartClearRequested { orderId, cartId }
+- OrderCartCleared { orderId, cartId }
+- Cross-Context Integration Events (published by Ordering)
+- OrderSubmitted { orderId, orderNumber, guestToken, items, totals }
+- StockCommitRequested { orderId, items } (to Inventory, if you decouple)
+- CartClearRequested { guestToken, cartId } (to Cart, if decoupled)
+
+CQRS Read Models
+- OrderDetailView (by orderId / orderNumber):
+    - customer info, address, items snapshots, totals, createdAt
+- AdminOrderListView:
+    - orderNumber, date, customerName, phone, total

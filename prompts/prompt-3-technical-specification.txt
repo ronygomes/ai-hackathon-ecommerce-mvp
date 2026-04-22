@@ -1,0 +1,55 @@
+You are a senior coding agent. Start implementing (write real code) for an eCommerce MVP backend using:the plan.
+    - Microservice-based distributed system
+    - DDD + CQRS + Clean Architecture
+    - RabbitMQ for command queues + event broadcast exchange
+    - MongoDB for event store, projections, idempotency, saga state
+    - Interfaces + Generics
+    - Separate deployable processes per subsystem:
+
+1) Command API
+2) CommandHandler
+3) EventHandler
+4) Query API
+5) Cross-subsystem SAGA orchestrator
+
+# 0) MVP Scope (Non-negotiable Defaults)
+- Guest-only checkout (no user registration/login)
+- Cash on Delivery (COD) only
+- Shipping fee = 0
+- No cancellation in MVP
+- Main focus: strict inventory accuracy, prevent overselling
+
+# 1) Subsystems to implement
+- ProductCatalog
+- Inventory
+- Cart
+- Checkout
+- OrderManagement
+- Payment
+- User (guest identity only)
+
+# 2) Output Expectations (What you must deliver)
+You must produce a working codebase with:
+- A monorepo containing all subsystems + sagas
+- Each subsystem has 4 runnable processes (CommandApi, CommandHandler, EventHandler, QueryApi)
+- One Saga Orchestrator process implementing at least PlaceOrderSaga
+- MongoDB persistence for:
+    - Event store (append-only event streams per aggregate)
+    - Read models (projections)
+    - Idempotency markers (processed commands/events)
+    - Saga state
+    - RabbitMQ messaging for:
+    - Command queues per subsystem
+    - Event fanout/broadcast exchange
+    - Dedicated consumer queues for event handlers and saga
+
+# 3) Technology Requirements (Assume Java 25)
+- Language: Java, Javalin Framework, Gradle, Guice
+- Use DI everywhere
+- Use async/await everywhere
+- Use structured logging
+- All inter-layer dependencies must be via interfaces
+- Provide unit tests for core domain rules and saga transitions
+
+VERY IMPORTANT
+Only implement ProductCatalog Subsystem and let me review.

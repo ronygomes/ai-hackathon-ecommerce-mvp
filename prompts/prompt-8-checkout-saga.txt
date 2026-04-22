@@ -1,0 +1,14 @@
+Write a plan for Checkout Saga. Make sure all subsystem has the necessary events and commands. If not create plan to add them. Do not generate Code.
+It starts at Order, Order needs to have a REST endpoint PlaceOrder.
+
+Saga: CheckoutSaga
+Goal: Convert a cart into an order with strict validation and atomic stock deduction, then clear cart.
+
+1. Rest Call PlaceOrder (Order Subsystem) -> PlaceOrderCommand (Order)
+2. (Order Event) CheckoutRequested -> GetCartSnapshotCommand (Cart)
+3. (Cart Event) CartSnapshotProvided -> GetProductSnapshotsCommand (Catalog)
+4. (ProductCatalog Event) ProductSnapshotsProvided -> ValidateStockBatchCommand (Inventory)
+5. (Inventory Event) StockBatchValidated -> DeductStockForOrderCommand (Inventory)
+6. (Inventory Event) StockDeductedForOrder -> CreateOrderCommand (Order)
+7. (Ordering Event) OrderCreated -> ClearCartCommand (Cart)
+8. (Cart Event) CartCleared -> MarkCheckoutCompletedCommand (Order)

@@ -1,0 +1,49 @@
+Here is the detail of the Cart Subsystem. Implement these similarly to product-catalog
+
+Aggregate Root
+- ShoppingCart
+
+Entities
+- CartItem
+    - productId
+    - quantity
+
+Value Objects
+- CartId
+- GuestToken
+- Quantity
+- ProductId
+
+Behaviors
+- CreateCart(guestToken) (implicit on first use)
+- AddItem(productId, qty)
+- IncreaseItem(productId, deltaQty)
+- ChangeQuantity(productId, newQty)
+- RemoveItem(productId)
+- Clear()
+
+Key Invariants / Validation
+- Quantity must be integer >= 1
+- Cannot add inactive product (validated via Catalog read model)
+- Cannot exceed available stock (soft validation via Inventory read model; strict recheck happens in Ordering)
+- A guest has one active cart (MVP)
+
+Commands
+- CreateCartCommand { guestToken } (optional; can auto-create)
+- AddCartItemCommand { guestToken, productId, qty }
+- UpdateCartItemQtyCommand { guestToken, productId, qty }
+- RemoveCartItemCommand { guestToken, productId }
+- ClearCartCommand { guestToken }
+
+Domain Events
+- CartCreated { cartId, guestToken }
+- CartItemAdded { cartId, productId, qty }
+- CartItemQuantityUpdated { cartId, productId, oldQty, newQty }
+- CartItemRemoved { cartId, productId }
+- CartCleared { cartId }
+
+CQRS Read Models
+- CartView:
+    - cartId, guestToken
+    - items: productId, qty
+    - derived totals (optional; in CQRS totals are computed on read side using current prices)

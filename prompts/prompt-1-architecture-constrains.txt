@@ -1,0 +1,163 @@
+You are a coding agent assisting me in designing (NOT implementing) a distributed system.
+Your job is to produce a detailed, step-by-step ENGINEERING PLAN and a REVIEW CHECKLIST.
+You must NOT write any code, not even snippets or pseudo-code that looks like production code.
+If you feel code is necessary, replace it with structured outlines, interfaces described in words, and class/module lists.
+
+# 0) Objective
+Create a detailed plan for implementing a distributed system architecture using:
+- Domain-Driven Design (DDD)
+- CQRS (Command Query Responsibility Segregation)
+- Clean Architecture (layered separation and dependency rules)
+- Interfaces + Generics as first-class design tools
+- Asynchronous integration via RabbitMQ (fanout/broadcast exchange)
+- Do not use Event Sourcing. Make the state database as source of truth.
+    This response is ONLY for planning.
+After the plan, stop and ask me to provide the actual business requirements and constraints.
+
+# 1) System Context and Constraints (Assumptions)
+Assume the system consists of multiple subsystems (bounded contexts / services).
+Each subsystem follows a consistent internal pattern for Commands and Events.
+Command side runtime flow (per subsystem):
+1. A REST Endpoint receives a Command request.
+2. REST Endpoint enqueues the Command into a Command Queue.
+3. A Command Handler consumes the Command.
+4. Command Handler loads or creates the Aggregate Root using a Repository.
+5. Command Handler calls the correct Aggregate behavior method.
+6. Aggregate executes business rules and produces Domain Events (append to event list).
+7. Command Handler persists the Aggregate:
+    - Maintain a state database
+8. Command Handler publishes the newly committed events to RabbitMQ broadcast exchange.
+9. One or more Event Handlers consume events and project them into a read database (query model).
+10. A Query REST Service exposes read APIs from the read database only.
+
+# 2) Non-Negotiable Architectural Rules
+## Clean Architecture Rules
+- Domain layer has NO dependency on application, infrastructure, messaging, web, or databases.
+- Application layer depends on Domain and defines use cases (Command handlers, policies, orchestration).
+- Infrastructure layer implements interfaces (repositories, event store, message bus, queue clients).
+- Presentation layer (REST) depends on Application only.
+- Dependency direction must always point inward.
+## DDD Rules
+- Use Bounded Contexts / Subsystems. Each subsystem has:
+- Aggregates, Entities, Value Objects, Domain Events, Domain Services (only if needed)
+- Ubiquitous Language definitions (glossary) in plan form
+- All business invariants enforced inside Aggregate behavior.
+- No “anemic domain model” (avoid putting business rules in handlers).
+## CQRS Rules
+- Separate command model from query model:
+- Command side uses aggregates and event store/state store.
+- Query side uses projections/read models optimized for queries.
+- No query reads from the command-side state store directly.
+## Event Sourcing Rules
+- Source of truth is event stream per aggregate instance.
+- Aggregate state is reconstructed by replaying events.
+- Command validation uses current aggregate state derived from events (and optionally snapshots).
+- Events are immutable; versioned when necessary.
+- Plan for idempotency and optimistic concurrency.
+## Interfaces and Generics Rules
+- All cross-layer dependencies are defined as interfaces in the Application layer.
+- Use generic abstractions where appropriate (e.g., IRepository<TAggregate, TId>).
+- Use generic command and event envelopes for metadata (correlationId, causationId, tenantId, etc.)
+- Ensure handlers are unit-testable via dependency inversion.
+## Messaging & Integration Rules
+- Publish domain events to RabbitMQ fanout/broadcast exchange.
+- Event handlers must be idempotent and resilient to duplicates/out-of-order delivery.
+- Plan a delivery strategy (at-least-once) and show how consumers stay safe.
+
+# 3) Your Output Format (Strict)
+Deliver your response in the following sections, in order:
+A. Clarify the Architecture in One Page
+- Describe the layers and the major runtime flows (command + event + query).
+- Provide a concise explanation of how DDD, CQRS, Clean Architecture, Event Sourcing map to this system.
+B. Define the Standard Subsystem Blueprint
+For ONE typical subsystem, define a reusable template that all subsystems follow:
+1) Layered folder/module structure (by layer and by bounded context)
+2) Standard naming conventions
+3) Required components and responsibilities, including:
+- REST Command Controller / Endpoint
+- Command DTOs and validation boundaries
+- Command Queue publisher and consumer
+- Command Handler pattern
+- Aggregate Root pattern
+- Domain Events pattern
+- Repository interface and implementation responsibilities
+- Event Store abstraction
+- Snapshot strategy (optional) and when to use it
+- Event Publisher abstraction to RabbitMQ
+- Event Handlers and Projection Writers
+- Read model schema approach and query service endpoints
+C. Define Core Abstractions (Plan-Only, No Code)
+Describe the key interfaces and generic types in plain text:
+- Command<TResponse>, CommandHandler<TCommand, TResponse>
+- AggregateRoot<TId>
+- DomainEvent and DomainEvent envelope (metadata)
+- EventStore<TAggregateId> (append, load stream, expected version)
+- Repository<TAggregate, TId> (load by id, save changes)
+- UnitOfWork (only if you decide it fits event sourcing + event store semantics)
+- MessageBus / EventPublisher (publish committed events)
+- ProjectionHandler<TEvent> / Projector
+- QueryService (read side)
+For each abstraction:
+- Responsibility
+- Inputs/Outputs
+- Error cases and how to represent them (without code)
+- How it supports testability
+D. Command Handling Lifecycle (Step-by-Step)
+Write a detailed lifecycle for:
+1) Receiving a command (REST)
+2) Enqueuing command
+3) Consuming command
+4) Loading aggregate by replaying events
+5) Executing aggregate behavior
+6) Producing events
+7) Persisting events with optimistic concurrency
+8) Publishing events
+9) Handling failures (DB failure, publish failure, handler crash, duplicate command)
+Include:
+- Idempotency strategy (command de-duplication keys)
+- Concurrency strategy (expected version checks)
+- Retry strategy and poison message strategy (conceptual, not tool-specific)
+E. Event Handling & Read Model Projection Lifecycle
+Provide a detailed lifecycle:
+1) Receiving an event from RabbitMQ
+2) Determining which projection(s) to update
+3) Writing projection updates to read database
+4) Idempotency in projections
+5) Rebuild strategy (replay events to rebuild read models)
+6) Versioning strategy for events and projection evolution
+F. Data Storage Plan
+Plan how you will store:
+- Event Store (stream, event payload, metadata, sequence number)
+- State database / snapshots (optional, explain trade-offs)
+- Read database (denormalized query tables/collections)
+Also include:
+- Multi-tenancy approach (if any)
+- Auditing requirements
+- Migration/versioning approach
+G. Observability, Security, and Operational Plan
+At plan level only:
+- Logging (correlationId/causeId)
+- Metrics (queue lag, handler failure rate, projection latency)
+- Tracing across services
+- Security boundaries (authN/authZ at REST, internal message trust, tenant isolation)
+- Schema registry / contract testing approach for events
+H. Testing Strategy (Plan-Only)
+- Unit tests: Aggregate rules, command handlers, projection handlers
+- Integration tests: event store, rabbitmq publishing/consuming, read model updates
+- Contract tests: event contracts across services
+- E2E tests: command → event → projection → query
+I. Deliverables Checklist (What you will produce next after my confirmation)
+List the artifacts you will produce AFTER I share real requirements:
+- Bounded context map
+- Ubiquitous language glossary
+- Aggregate/event/command catalog
+- API endpoint list
+- Event schema definitions
+- Failure-mode table
+- Deployment view (logical)
+- Work breakdown plan (phases)
+Do not proceed to implementation or coding.
+
+# 4) Important Stop Condition
+If you start drifting into implementation details (code, frameworks, concrete library calls), STOP immediately and return to planning level.
+Now generate the planning document accordingly.

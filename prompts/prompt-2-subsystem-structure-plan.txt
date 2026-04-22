@@ -1,0 +1,79 @@
+Add to Plan: Microservice + Multi-Process Subsystem Structure
+
+1) Macro Architecture
+The system is a microservice-based distributed system.
+Each subsystem = one bounded context (DDD) and is deployed independently.
+Each subsystem is split into multiple deployable processes (separate executables/containers), not just "modules in one service".
+Communication patterns:
+    Command flow is asynchronous via RabbitMQ (command queue).
+    Event propagation is via RabbitMQ broadcast/fanout exchange.
+    Queries are served by a dedicated Query API process reading from a query/read database.
+    Cross-subsystem business processes are coordinated via a SAGA process (orchestrator) consuming events and emitting commands.
+
+2) Required Processes per Subsystem (Deployment Units)
+Each subsystem must have (at minimum) these processes:
+A) Command API Process (Ingress)
+Purpose
+Exposes REST endpoints for commands (write requests).
+Performs request validation at the boundary (shape, auth, basic invariants), but does not execute domain logic.
+Responsibilities
+    AuthN/AuthZ and tenant context extraction (if multitenant).
+    Validate command DTOs (format, required fields, basic constraints).
+    Generate metadata: CorrelationId, CausationId, RequestId, UserId, TenantId, timestamp.
+    Enqueue command message into the subsystem's command queue in RabbitMQ.
+    Return an acknowledgment response pattern (e.g., 202 Accepted + tracking id) as per plan.
+    Non-responsibilities
+    No DB writes of domain state.
+    No direct call to aggregates or repositories.
+B) CommandHandler Process (Write Model Executor)
+Purpose
+Consumes commands from RabbitMQ and executes domain behaviors.
+Responsibilities
+    Dequeue command from command queue.
+    Load aggregate state (via event stream replay and/or snapshot/state-store as designed).
+    Enforce business invariants inside aggregate behavior.
+    Produce new domain events.
+    Publish committed domain events to RabbitMQ broadcast exchange.
+    Ensure idempotency: command de-duplication using a stored processed-command marker keyed by CommandId (or equivalent).
+    Non-responsibilities
+    No query/read model generation.
+    No query API endpoints.
+C) EventHandler Process (Projection / Integration Consumer)
+Purpose
+Consumes domain events and updates the read model (query database) and/or performs local side effects.
+Each event will be handled by separate event handlers to save projection.
+Responsibilities
+    Subscribe to the subsystem's relevant event streams (from RabbitMQ exchange).
+    Update read-side projections in MongoDB (denormalized collections optimized for queries).
+    Optionally publish "integration events" if you distinguish internal domain events vs public events (plan it explicitly).
+    Non-responsibilities
+    No aggregate writes.
+    No command acceptance endpoints.
+D) QueryAPI Process (Read Model Service)
+Purpose
+Exposes REST endpoints for querying read models.
+Responsibilities
+    Query MongoDB read collections only.
+    Apply authorization / row-level constraints as needed (tenant filters, role filters).
+    Provide filtering, paging, sorting; optionally "search-like" endpoints depending on domain needs.
+    Provide consistent DTOs and API versioning.
+    Non-responsibilities
+    No command handling.
+    No event consumption.
+
+3) Cross-Subsystem SAGA Process (Orchestrator)
+This is a separate process per "business workflow family" (recommended) or a shared orchestrator (possible, but can become a bottleneck).
+Purpose
+Coordinate multi-step workflows spanning multiple subsystems using events and commands.
+SAGA responsibilities
+    Subscribe to events from multiple subsystems (integration events).
+    Maintain SAGA state in MongoDB (one document per saga instance) including:
+    SagaId, CorrelationId, current step, status, timeouts, retries, compensations triggered, etc.
+    Decide next action(s) and emit commands to the appropriate subsystem command queues.
+    Handle timeouts and dead-letter scenarios (e.g., step didn't happen within SLA).
+    Ensure idempotency and deduplication (don't advance twice on duplicate events).
+    Define compensation commands and rollback policies where needed.
+    SAGA boundary rule
+    SAGA is orchestration, not business logic-heavy domain modeling.
+    Domain invariants remain within each subsystem aggregate.
+    SAGA encodes process policies (what happens next), not "how an aggregate works".
