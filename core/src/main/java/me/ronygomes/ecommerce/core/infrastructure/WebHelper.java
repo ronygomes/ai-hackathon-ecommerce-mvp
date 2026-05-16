@@ -2,8 +2,8 @@ package me.ronygomes.ecommerce.core.infrastructure;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
-import io.javalin.Javalin;
-import org.eclipse.jetty.http.HttpStatus;
+import io.javalin.config.JavalinConfig;
+import io.javalin.http.HttpStatus;
 import org.slf4j.Logger;
 
 public class WebHelper {
@@ -17,28 +17,28 @@ public class WebHelper {
     private static final String INVALID_FORMAT_ERROR_MESSAGE = "'%s' is not a valid %s type";
     private static final String DEFAULT_ERROR_MESSAGE = "The application has encountered an unknown error";
 
-    public static void registerDefaultExceptionHandler(Javalin app, Logger log) {
-        app.exception(ValidationException.class, (e, ctx) -> {
-            ctx.status(HttpStatus.BAD_REQUEST_400);
+    public static void registerDefaultExceptionHandler(JavalinConfig config, Logger log) {
+        config.routes.exception(ValidationException.class, (e, ctx) -> {
+            ctx.status(HttpStatus.BAD_REQUEST);
             ctx.result(ERROR_JSON_TEMPLATE.formatted(e.getMessage()));
         });
 
-        app.exception(InvalidFormatException.class, (e, ctx) -> {
-            ctx.status(HttpStatus.BAD_REQUEST_400);
+        config.routes.exception(InvalidFormatException.class, (e, ctx) -> {
+            ctx.status(HttpStatus.BAD_REQUEST);
             ctx.result(ERROR_JSON_TEMPLATE.formatted(
                     INVALID_FORMAT_ERROR_MESSAGE.formatted(e.getValue(), e.getTargetType().getName())
             ));
         });
 
 
-        app.exception(JsonParseException.class, (e, ctx) -> {
-            ctx.status(HttpStatus.BAD_REQUEST_400);
+        config.routes.exception(JsonParseException.class, (e, ctx) -> {
+            ctx.status(HttpStatus.BAD_REQUEST);
             ctx.result(INVALID_JSON_ERROR_MESSAGE);
         });
 
-        app.exception(Exception.class, (e, ctx) -> {
+        config.routes.exception(Exception.class, (e, ctx) -> {
             log.error("Error processing command", e);
-            ctx.status(HttpStatus.INTERNAL_SERVER_ERROR_500);
+            ctx.status(HttpStatus.INTERNAL_SERVER_ERROR);
             ctx.result(ERROR_JSON_TEMPLATE.formatted(DEFAULT_ERROR_MESSAGE));
         });
     }

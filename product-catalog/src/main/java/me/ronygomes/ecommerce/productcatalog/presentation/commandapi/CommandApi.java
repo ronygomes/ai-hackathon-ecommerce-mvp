@@ -2,12 +2,13 @@ package me.ronygomes.ecommerce.productcatalog.presentation.commandapi;
 
 import com.google.inject.Guice;
 import io.javalin.Javalin;
+import io.javalin.config.JavalinConfig;
+import io.javalin.http.HttpStatus;
 import jakarta.inject.Inject;
 import me.ronygomes.ecommerce.core.application.CommandBus;
 import me.ronygomes.ecommerce.core.infrastructure.Validator;
 import me.ronygomes.ecommerce.productcatalog.application.CreateProductCommand;
 import me.ronygomes.ecommerce.productcatalog.infrastructure.CommandApiModule;
-import org.eclipse.jetty.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,26 +28,25 @@ public class CommandApi {
         this.validator = validator;
     }
 
-    public void run(Javalin app) {
+    public void register(JavalinConfig config) {
 
-        app.post("/products", ctx -> {
+        config.routes.post("/products", ctx -> {
             CreateProductCommand command = ctx.bodyAsClass(CreateProductCommand.class);
             log.trace("Received command: {}", command);
 
             validator.validate(command);
             commandBus.send(command);
 
-            ctx.status(HttpStatus.ACCEPTED_202);
+            ctx.status(HttpStatus.ACCEPTED);
         });
 
-        registerDefaultExceptionHandler(app, log);
+        registerDefaultExceptionHandler(config, log);
     }
 
     static void main() {
-        Javalin app = Javalin.create().start(PORT);
+        CommandApi commandApi = Guice.createInjector(new CommandApiModule())
+                .getInstance(CommandApi.class);
 
-        Guice.createInjector(new CommandApiModule())
-                .getInstance(CommandApi.class)
-                .run(app);
+        Javalin.create(commandApi::register).start(PORT);
     }
 }

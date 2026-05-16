@@ -1,11 +1,11 @@
 package me.ronygomes.ecommerce.productcatalog.presentation.commandapi;
 
 import io.javalin.Javalin;
+import io.javalin.http.HttpStatus;
 import io.javalin.testtools.JavalinTest;
 import me.ronygomes.ecommerce.core.application.CommandBus;
 import me.ronygomes.ecommerce.core.infrastructure.Validator;
 import me.ronygomes.ecommerce.productcatalog.application.CreateProductCommand;
-import org.eclipse.jetty.http.HttpStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -53,7 +53,7 @@ public class CommandApiTest {
 
         JavalinTest.test(setupApp(), (server, client) -> {
             var response = client.post("/products", body);
-            assertThat(response.code()).isEqualTo(HttpStatus.ACCEPTED_202);
+            assertThat(response.code()).isEqualTo(HttpStatus.ACCEPTED.getCode());
 
             var commandCaptor = ArgumentCaptor.forClass(CreateProductCommand.class);
             verify(validator).validate(commandCaptor.capture());
@@ -81,7 +81,7 @@ public class CommandApiTest {
 
         JavalinTest.test(setupApp(), (server, client) -> {
             var response = client.post("/products", body);
-            assertThat(response.code()).isEqualTo(HttpStatus.BAD_REQUEST_400);
+            assertThat(response.code()).isEqualTo(HttpStatus.BAD_REQUEST.getCode());
             assertThat(response.body().string()).contains("sku cannot be empty");
         });
     }
@@ -99,7 +99,7 @@ public class CommandApiTest {
 
         JavalinTest.test(setupApp(), (server, client) -> {
             var response = client.post("/products", body);
-            assertThat(response.code()).isEqualTo(HttpStatus.BAD_REQUEST_400);
+            assertThat(response.code()).isEqualTo(HttpStatus.BAD_REQUEST.getCode());
             assertThat(response.body().string()).contains("'abc' is not a valid double type");
         });
     }
@@ -117,7 +117,7 @@ public class CommandApiTest {
 
         JavalinTest.test(setupApp(), (server, client) -> {
             var response = client.post("/products", body);
-            assertThat(response.code()).isEqualTo(HttpStatus.BAD_REQUEST_400);
+            assertThat(response.code()).isEqualTo(HttpStatus.BAD_REQUEST.getCode());
             assertThat(response.body().string()).contains("Invalid JSON Request");
         });
     }
@@ -137,14 +137,12 @@ public class CommandApiTest {
 
         JavalinTest.test(setupApp(), (server, client) -> {
             var response = client.post("/products", body);
-            assertThat(response.code()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR_500);
+            assertThat(response.code()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR.getCode());
             assertThat(response.body().string()).contains("The application has encountered an unknown error");
         });
     }
 
     private Javalin setupApp() {
-        Javalin app = Javalin.create();
-        commandApi.run(app);
-        return app;
+        return Javalin.create(commandApi::register);
     }
 }
