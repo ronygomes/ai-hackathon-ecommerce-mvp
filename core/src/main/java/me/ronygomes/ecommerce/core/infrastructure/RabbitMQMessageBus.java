@@ -19,10 +19,19 @@ public class RabbitMQMessageBus implements MessageBus {
     private final ConnectionFactory factory;
 
     public RabbitMQMessageBus(String exchangeName, String host) {
+        this(exchangeName, defaultFactory(host));
+    }
+
+    public RabbitMQMessageBus(String exchangeName, ConnectionFactory factory) {
         this.exchangeName = exchangeName;
         this.objectMapper = new ObjectMapper();
-        this.factory = new ConnectionFactory();
-        this.factory.setHost(host);
+        this.factory = factory;
+    }
+
+    private static ConnectionFactory defaultFactory(String host) {
+        ConnectionFactory f = new ConnectionFactory();
+        f.setHost(host);
+        return f;
     }
 
     @Override

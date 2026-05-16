@@ -33,6 +33,7 @@ public abstract class BaseMongoRepository<TAggregate extends AggregateRoot<TId>,
             if (doc == null)
                 return Optional.empty();
             try {
+                doc.remove("_id");
                 return Optional.of(objectMapper.readValue(doc.toJson(), aggregateClass));
             } catch (Exception e) {
                 throw new RuntimeException("Failed to deserialize aggregate", e);

@@ -22,10 +22,19 @@ public class RabbitMQCommandBus implements CommandBus {
     }
 
     public RabbitMQCommandBus(String queueName, String host) {
+        this(queueName, defaultFactory(host));
+    }
+
+    public RabbitMQCommandBus(String queueName, ConnectionFactory factory) {
         this.queueName = queueName;
         this.objectMapper = new ObjectMapper();
-        this.factory = new ConnectionFactory();
-        this.factory.setHost(host);
+        this.factory = factory;
+    }
+
+    private static ConnectionFactory defaultFactory(String host) {
+        ConnectionFactory f = new ConnectionFactory();
+        f.setHost(host);
+        return f;
     }
 
     @Override
