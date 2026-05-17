@@ -5,6 +5,7 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import me.ronygomes.ecommerce.core.domain.DomainEvent;
+import me.ronygomes.ecommerce.core.messaging.MessageBus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -80,5 +81,43 @@ class RabbitMQMessageBusTest {
         assertThatThrownBy(() -> bus.publish(List.of(new EventA("a", 1L, "x"))).get())
                 .isInstanceOf(ExecutionException.class)
                 .hasMessageContaining("Failed to publish events to RabbitMQ");
+    }
+
+    @Test
+    void publishRaw_publishesEachMessageWithProvidedTypeHeaderAndBody() throws Exception {
+        bus.publishRaw(List.of(
+                new MessageBus.RawMessage("EventA", "{\"x\":1}".getBytes()),
+                new MessageBus.RawMessage("EventB", "{\"y\":2}".getBytes()))).get();
+
+        verify(channel).exchangeDeclare(eq("test_exchange"), eq("fanout"), eq(true));
+
+        ArgumentCaptor<AMQP.BasicProperties> propsCaptor = ArgumentCaptor.forClass(AMQP.BasicProperties.class);
+        ArgumentCaptor<byte[]> bodyCaptor = ArgumentCaptor.forClass(byte[].class);
+        verify(channel, times(2))
+                .basicPublish(eq("test_exchange"), eq(""), propsCaptor.capture(), bodyCaptor.capture());
+
+        assertThat(propsCaptor.getAllValues())
+                .extracting(p -> p.getHeaders().get("X-Message-Type"))
+                .containsExactly("EventA", "EventB");
+        assertThat(new String(bodyCaptor.getAllValues().get(0))).isEqualTo("{\"x\":1}");
+        assertThat(new String(bodyCaptor.getAllValues().get(1))).isEqualTo("{\"y\":2}");
+    }
+
+    @Test
+    void publishRaw_emptyList_declaresExchangeButPublishesNothing() throws Exception {
+        bus.publishRaw(List.of()).get();
+
+        verify(channel).exchangeDeclare(eq("test_exchange"), eq("fanout"), eq(true));
+        verify(channel, times(0)).basicPublish(any(), any(), any(), any());
+    }
+
+    @Test
+    void publishRaw_whenChannelThrows_completesExceptionally() throws Exception {
+        when(channel.exchangeDeclare(any(String.class), any(String.class), anyBoolean()))
+                .thenThrow(new IOException("rabbit down"));
+
+        assertThatThrownBy(() -> bus.publishRaw(List.of(new MessageBus.RawMessage("T", new byte[0]))).get())
+                .isInstanceOf(ExecutionException.class)
+                .hasMessageContaining("Failed to publish raw messages to RabbitMQ");
     }
 }

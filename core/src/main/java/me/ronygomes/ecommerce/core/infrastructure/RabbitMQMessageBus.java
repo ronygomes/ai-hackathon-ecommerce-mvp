@@ -56,4 +56,25 @@ public class RabbitMQMessageBus implements MessageBus {
             }
         });
     }
+
+    @Override
+    public CompletableFuture<Void> publishRaw(List<RawMessage> messages) {
+        return CompletableFuture.runAsync(() -> {
+            try (Connection connection = factory.newConnection();
+                    Channel channel = connection.createChannel()) {
+                channel.exchangeDeclare(exchangeName, "fanout", true);
+                for (RawMessage msg : messages) {
+                    Map<String, Object> headers = new HashMap<>();
+                    headers.put("X-Message-Type", msg.type());
+                    AMQP.BasicProperties props = new AMQP.BasicProperties.Builder()
+                            .headers(headers)
+                            .build();
+
+                    channel.basicPublish(exchangeName, "", props, msg.payload());
+                }
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to publish raw messages to RabbitMQ", e);
+            }
+        });
+    }
 }
