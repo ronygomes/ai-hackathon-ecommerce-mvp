@@ -3,7 +3,7 @@ package me.ronygomes.ecommerce.ordering.application;
 import com.google.inject.Inject;
 import me.rongyomes.ecommerce.checkout.saga.message.command.MarkCheckoutCompletedCommand;
 import me.ronygomes.ecommerce.core.application.CommandHandler;
-import me.ronygomes.ecommerce.core.messaging.MessageBus;
+import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxStore;
 import me.ronygomes.ecommerce.ordering.domain.Order;
 import me.ronygomes.ecommerce.ordering.domain.OrderId;
 import me.ronygomes.ecommerce.ordering.infrastructure.OrderRepository;
@@ -12,12 +12,12 @@ import java.util.concurrent.CompletableFuture;
 
 public class MarkCheckoutCompletedHandler implements CommandHandler<MarkCheckoutCompletedCommand, Void> {
     private final OrderRepository repository;
-    private final MessageBus messageBus;
+    private final OutboxStore outboxStore;
 
     @Inject
-    public MarkCheckoutCompletedHandler(OrderRepository repository, MessageBus messageBus) {
+    public MarkCheckoutCompletedHandler(OrderRepository repository, OutboxStore outboxStore) {
         this.repository = repository;
-        this.messageBus = messageBus;
+        this.outboxStore = outboxStore;
     }
 
     @Override
@@ -29,8 +29,10 @@ public class MarkCheckoutCompletedHandler implements CommandHandler<MarkCheckout
                     Order order = opt.get();
                     order.finalizeCreated();
                     return repository.save(order)
-                            .thenCompose(v -> messageBus.publish(order.getUncommittedEvents()))
-                            .thenRun(order::clearUncommittedEvents);
+                            .thenAccept(v -> {
+                                outboxStore.append(order.getId().toString(), order.getUncommittedEvents());
+                                order.clearUncommittedEvents();
+                            });
                 });
     }
 }

@@ -3,7 +3,7 @@ package me.ronygomes.ecommerce.ordering.application;
 import me.rongyomes.ecommerce.checkout.saga.message.command.MarkCheckoutCompletedCommand;
 import me.rongyomes.ecommerce.checkout.saga.message.event.OrderCreated;
 import me.ronygomes.ecommerce.core.domain.DomainEvent;
-import me.ronygomes.ecommerce.core.messaging.MessageBus;
+import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxStore;
 import me.ronygomes.ecommerce.ordering.domain.CustomerInfo;
 import me.ronygomes.ecommerce.ordering.domain.GuestToken;
 import me.ronygomes.ecommerce.ordering.domain.IdempotencyKey;
@@ -34,12 +34,12 @@ import static org.mockito.Mockito.when;
 class MarkCheckoutCompletedHandlerTest {
 
     private final OrderRepository repository = mock(OrderRepository.class);
-    private final MessageBus messageBus = mock(MessageBus.class);
+    private final OutboxStore outboxStore = mock(OutboxStore.class);
     private MarkCheckoutCompletedHandler handler;
 
     @BeforeEach
     void setUp() {
-        handler = new MarkCheckoutCompletedHandler(repository, messageBus);
+        handler = new MarkCheckoutCompletedHandler(repository, outboxStore);
         when(repository.save(any())).thenReturn(CompletableFuture.completedFuture(null));
     }
 
@@ -54,21 +54,24 @@ class MarkCheckoutCompletedHandlerTest {
     }
 
     @Test
-    void handle_finalizesOrderSavesAndPublishesOrderCreated() throws Exception {
+    void handle_finalizesOrderSavesAndAppendsOrderCreatedToOutbox() throws Exception {
         Order order = placedOrder();
         order.clearUncommittedEvents();
         when(repository.getById(any())).thenReturn(CompletableFuture.completedFuture(Optional.of(order)));
-        AtomicReference<List<DomainEvent>> published = new AtomicReference<>();
+        AtomicReference<String> appendedAggregateId = new AtomicReference<>();
+        AtomicReference<List<DomainEvent>> appendedEvents = new AtomicReference<>();
         doAnswer(inv -> {
-            published.set(new ArrayList<>(inv.getArgument(0)));
-            return CompletableFuture.completedFuture(null);
-        }).when(messageBus).publish(any());
+            appendedAggregateId.set(inv.getArgument(0));
+            appendedEvents.set(new ArrayList<>(inv.getArgument(1)));
+            return null;
+        }).when(outboxStore).append(any(), any());
 
         handler.handle(new MarkCheckoutCompletedCommand(order.getId().value())).get();
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.COMPLETED);
         verify(repository).save(order);
-        assertThat(published.get()).singleElement().isInstanceOf(OrderCreated.class);
+        assertThat(appendedAggregateId.get()).isEqualTo(order.getId().toString());
+        assertThat(appendedEvents.get()).singleElement().isInstanceOf(OrderCreated.class);
     }
 
     @Test

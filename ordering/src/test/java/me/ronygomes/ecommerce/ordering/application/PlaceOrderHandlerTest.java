@@ -2,7 +2,7 @@ package me.ronygomes.ecommerce.ordering.application;
 
 import me.rongyomes.ecommerce.checkout.saga.message.event.CheckoutRequested;
 import me.ronygomes.ecommerce.core.domain.DomainEvent;
-import me.ronygomes.ecommerce.core.messaging.MessageBus;
+import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxStore;
 import me.ronygomes.ecommerce.ordering.domain.CustomerInfo;
 import me.ronygomes.ecommerce.ordering.domain.IdempotencyKey;
 import me.ronygomes.ecommerce.ordering.domain.Order;
@@ -30,12 +30,12 @@ import static org.mockito.Mockito.when;
 class PlaceOrderHandlerTest {
 
     private final OrderRepository repository = mock(OrderRepository.class);
-    private final MessageBus messageBus = mock(MessageBus.class);
+    private final OutboxStore outboxStore = mock(OutboxStore.class);
     private PlaceOrderHandler handler;
 
     @BeforeEach
     void setUp() {
-        handler = new PlaceOrderHandler(repository, messageBus);
+        handler = new PlaceOrderHandler(repository, outboxStore);
         when(repository.save(any())).thenReturn(CompletableFuture.completedFuture(null));
     }
 
@@ -51,23 +51,26 @@ class PlaceOrderHandlerTest {
     }
 
     @Test
-    void handle_newKey_savesAndPublishesCheckoutRequestedAndReturnsOrderId() throws Exception {
+    void handle_newKey_savesAndAppendsCheckoutRequestedToOutboxAndReturnsOrderId() throws Exception {
         when(repository.getByIdempotencyKey(any())).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
-        AtomicReference<List<DomainEvent>> published = new AtomicReference<>();
+        AtomicReference<String> appendedAggregateId = new AtomicReference<>();
+        AtomicReference<List<DomainEvent>> appendedEvents = new AtomicReference<>();
         doAnswer(inv -> {
-            published.set(new ArrayList<>(inv.getArgument(0)));
-            return CompletableFuture.completedFuture(null);
-        }).when(messageBus).publish(any());
+            appendedAggregateId.set(inv.getArgument(0));
+            appendedEvents.set(new ArrayList<>(inv.getArgument(1)));
+            return null;
+        }).when(outboxStore).append(any(), any());
 
         UUID result = handler.handle(sampleCommand(UUID.randomUUID())).get();
 
         assertThat(result).isNotNull();
         verify(repository).save(any(Order.class));
-        assertThat(published.get()).singleElement().isInstanceOf(CheckoutRequested.class);
+        assertThat(appendedAggregateId.get()).isEqualTo(result.toString());
+        assertThat(appendedEvents.get()).singleElement().isInstanceOf(CheckoutRequested.class);
     }
 
     @Test
-    void handle_existingKey_returnsExistingOrderIdAndDoesNotSave() throws Exception {
+    void handle_existingKey_returnsExistingOrderIdAndDoesNotSaveOrAppend() throws Exception {
         UUID key = UUID.randomUUID();
         Order existing = Order.place(
                 OrderId.generate(),
@@ -83,7 +86,7 @@ class PlaceOrderHandlerTest {
 
         assertThat(result).isEqualTo(existing.getId().value());
         verify(repository, never()).save(any());
-        verify(messageBus, never()).publish(any());
+        verify(outboxStore, never()).append(any(), any());
     }
 
     @Test

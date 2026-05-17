@@ -2,7 +2,7 @@ package me.ronygomes.ecommerce.ordering.application;
 
 import com.google.inject.Inject;
 import me.ronygomes.ecommerce.core.application.CommandHandler;
-import me.ronygomes.ecommerce.core.messaging.MessageBus;
+import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxStore;
 import me.ronygomes.ecommerce.ordering.domain.*;
 import me.ronygomes.ecommerce.ordering.infrastructure.OrderRepository;
 
@@ -13,12 +13,12 @@ import java.util.stream.Collectors;
 
 public class PlaceOrderHandler implements CommandHandler<PlaceOrderCommand, UUID> {
     private final OrderRepository repository;
-    private final MessageBus messageBus;
+    private final OutboxStore outboxStore;
 
     @Inject
-    public PlaceOrderHandler(OrderRepository repository, MessageBus messageBus) {
+    public PlaceOrderHandler(OrderRepository repository, OutboxStore outboxStore) {
         this.repository = repository;
-        this.messageBus = messageBus;
+        this.outboxStore = outboxStore;
     }
 
     @Override
@@ -45,9 +45,11 @@ public class PlaceOrderHandler implements CommandHandler<PlaceOrderCommand, UUID
                             key);
 
                     return repository.save(order)
-                            .thenCompose(v -> messageBus.publish(order.getUncommittedEvents()))
-                            .thenRun(order::clearUncommittedEvents)
-                            .thenApply(v -> orderId.value());
+                            .thenApply(v -> {
+                                outboxStore.append(orderId.value().toString(), order.getUncommittedEvents());
+                                order.clearUncommittedEvents();
+                                return orderId.value();
+                            });
                 });
     }
 }

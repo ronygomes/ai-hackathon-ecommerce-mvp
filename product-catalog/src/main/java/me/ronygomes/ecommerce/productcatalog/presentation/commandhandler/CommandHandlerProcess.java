@@ -16,6 +16,8 @@ import com.rabbitmq.client.DeliverCallback;
 import me.rongyomes.ecommerce.checkout.saga.message.command.GetProductSnapshotsCommand;
 import me.ronygomes.ecommerce.core.infrastructure.MongoClientProvider;
 import me.ronygomes.ecommerce.core.infrastructure.Repository;
+import me.ronygomes.ecommerce.core.infrastructure.idempotency.MongoProcessedCommandStore;
+import me.ronygomes.ecommerce.core.infrastructure.idempotency.ProcessedCommandStore;
 import me.ronygomes.ecommerce.core.infrastructure.outbox.MongoOutboxStore;
 import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxDispatcher;
 import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxStore;
@@ -48,6 +50,7 @@ public class CommandHandlerProcess {
 
     private static final String DB_NAME = "aihackathon";
     private static final String OUTBOX_COLLECTION = "product_catalog_outbox";
+    private static final String PROCESSED_COMMANDS_COLLECTION = "product_catalog_processed_commands";
     private static final int OUTBOX_BATCH_SIZE = 100;
     private static final long OUTBOX_TICK_INTERVAL_MS = 500;
 
@@ -64,25 +67,26 @@ public class CommandHandlerProcess {
 
         ObjectMapper objectMapper = new ObjectMapper();
         MessageDispatcherImpl dispatcher = new MessageDispatcherImpl(objectMapper);
+        ProcessedCommandStore processedCommandStore = injector.getInstance(ProcessedCommandStore.class);
 
         dispatcher.registerHandler("CreateProductCommand",
                 new CommandHandlerDispatcherAdapter<>(injector.getInstance(CreateProductHandler.class),
-                        CreateProductCommand.class));
+                        CreateProductCommand.class, processedCommandStore));
         dispatcher.registerHandler("UpdateProductDetailsCommand",
                 new CommandHandlerDispatcherAdapter<>(injector.getInstance(UpdateProductDetailsHandler.class),
-                        UpdateProductDetailsCommand.class));
+                        UpdateProductDetailsCommand.class, processedCommandStore));
         dispatcher.registerHandler("ChangeProductPriceCommand",
                 new CommandHandlerDispatcherAdapter<>(injector.getInstance(ChangeProductPriceHandler.class),
-                        ChangeProductPriceCommand.class));
+                        ChangeProductPriceCommand.class, processedCommandStore));
         dispatcher.registerHandler("ActivateProductCommand",
                 new CommandHandlerDispatcherAdapter<>(injector.getInstance(ActivateProductHandler.class),
-                        ActivateProductCommand.class));
+                        ActivateProductCommand.class, processedCommandStore));
         dispatcher.registerHandler("DeactivateProductCommand",
                 new CommandHandlerDispatcherAdapter<>(injector.getInstance(DeactivateProductHandler.class),
-                        DeactivateProductCommand.class));
+                        DeactivateProductCommand.class, processedCommandStore));
         dispatcher.registerHandler("GetProductSnapshotsCommand",
                 new CommandHandlerDispatcherAdapter<>(injector.getInstance(GetProductSnapshotsHandler.class),
-                        GetProductSnapshotsCommand.class));
+                        GetProductSnapshotsCommand.class, processedCommandStore));
 
         OutboxDispatcher outboxDispatcher = new OutboxDispatcher(
                 injector.getInstance(OutboxStore.class),
@@ -145,6 +149,12 @@ public class CommandHandlerProcess {
         @Singleton
         OutboxStore outboxStore(MongoClient mongoClient) {
             return new MongoOutboxStore(mongoClient, DB_NAME, OUTBOX_COLLECTION);
+        }
+
+        @Provides
+        @Singleton
+        ProcessedCommandStore processedCommandStore(MongoClient mongoClient) {
+            return new MongoProcessedCommandStore(mongoClient, DB_NAME, PROCESSED_COMMANDS_COLLECTION);
         }
     }
 }
