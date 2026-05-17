@@ -1,5 +1,7 @@
 package me.rongyomes.ecommerce.checkout.saga;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import me.rongyomes.ecommerce.checkout.saga.message.event.CartSnapshotProvided;
 import me.rongyomes.ecommerce.checkout.saga.message.event.ProductSnapshotsProvided;
 
@@ -18,7 +20,10 @@ public class SagaState {
     public List<CartSnapshotProvided.CartItemSnapshot> cartItems;
     public List<ProductSnapshotsProvided.ProductSnapshot> productSnapshots;
 
-    public SagaState(UUID orderId, String guestToken, String idempotencyKey) {
+    @JsonCreator
+    public SagaState(@JsonProperty("orderId") UUID orderId,
+                     @JsonProperty("guestToken") String guestToken,
+                     @JsonProperty("idempotencyKey") String idempotencyKey) {
         this.orderId = orderId;
         this.guestToken = guestToken;
         this.idempotencyKey = idempotencyKey;

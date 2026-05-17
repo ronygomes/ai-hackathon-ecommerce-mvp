@@ -26,7 +26,9 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -39,11 +41,12 @@ class SagaOrchestratorTest {
     private final CommandBus catalogBus = mock(CommandBus.class);
     private final CommandBus inventoryBus = mock(CommandBus.class);
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final InMemorySagaStateStore store = new InMemorySagaStateStore();
     private SagaOrchestrator orchestrator;
 
     @BeforeEach
     void setUp() {
-        orchestrator = new SagaOrchestrator(orderBus, cartBus, catalogBus, inventoryBus, objectMapper);
+        orchestrator = new SagaOrchestrator(orderBus, cartBus, catalogBus, inventoryBus, objectMapper, store);
         when(orderBus.send(any())).thenReturn(CompletableFuture.completedFuture(null));
         when(cartBus.send(any())).thenReturn(CompletableFuture.completedFuture(null));
         when(catalogBus.send(any())).thenReturn(CompletableFuture.completedFuture(null));
@@ -60,15 +63,15 @@ class SagaOrchestratorTest {
     }
 
     @Test
-    void step1_checkoutRequested_storesSagaStateAndSendsGetCartSnapshot() throws Exception {
+    void step1_checkoutRequested_persistsSagaStateAndSendsGetCartSnapshot() throws Exception {
         UUID orderId = UUID.randomUUID();
 
         orchestrator.handle("CheckoutRequested", json(checkoutRequested(orderId, "g1", "idem-1")));
 
-        assertThat(orchestrator.activeSagas()).containsKey(orderId);
-        SagaState state = orchestrator.activeSagas().get(orderId);
-        assertThat(state.guestToken).isEqualTo("g1");
-        assertThat(state.idempotencyKey).isEqualTo("idem-1");
+        assertThat(store.findByOrderId(orderId)).hasValueSatisfying(state -> {
+            assertThat(state.guestToken).isEqualTo("g1");
+            assertThat(state.idempotencyKey).isEqualTo("idem-1");
+        });
 
         ArgumentCaptor<Command<?>> sent = ArgumentCaptor.forClass(Command.class);
         verify(cartBus).send(sent.capture());
@@ -77,7 +80,7 @@ class SagaOrchestratorTest {
     }
 
     @Test
-    void step2_cartSnapshotProvided_storesItemsAndSendsGetProductSnapshots() throws Exception {
+    void step2_cartSnapshotProvided_persistsItemsAndSendsGetProductSnapshots() throws Exception {
         UUID orderId = UUID.randomUUID();
         orchestrator.handle("CheckoutRequested", json(checkoutRequested(orderId, "g1", "k")));
         UUID productA = UUID.randomUUID();
@@ -88,7 +91,7 @@ class SagaOrchestratorTest {
 
         orchestrator.handle("CartSnapshotProvided", json(snapshot));
 
-        SagaState state = orchestrator.activeSagas().get(orderId);
+        SagaState state = store.findByOrderId(orderId).orElseThrow();
         assertThat(state.totalItemsToDeduct).isEqualTo(2);
         assertThat(state.cartItems).hasSize(2);
 
@@ -99,7 +102,7 @@ class SagaOrchestratorTest {
     }
 
     @Test
-    void step3_productSnapshotsProvided_storesAndSendsValidateStockBatch() throws Exception {
+    void step3_productSnapshotsProvided_persistsAndSendsValidateStockBatch() throws Exception {
         UUID orderId = UUID.randomUUID();
         UUID productA = UUID.randomUUID();
         orchestrator.handle("CheckoutRequested", json(checkoutRequested(orderId, "g1", "k")));
@@ -110,7 +113,7 @@ class SagaOrchestratorTest {
 
         orchestrator.handle("ProductSnapshotsProvided", json(snapshots));
 
-        SagaState state = orchestrator.activeSagas().get(orderId);
+        SagaState state = store.findByOrderId(orderId).orElseThrow();
         assertThat(state.productSnapshots).hasSize(1);
         ArgumentCaptor<Command<?>> sent = ArgumentCaptor.forClass(Command.class);
         verify(inventoryBus).send(sent.capture());
@@ -130,7 +133,7 @@ class SagaOrchestratorTest {
 
         orchestrator.handle("StockBatchValidated", json(new StockBatchValidated()));
 
-        SagaState state = orchestrator.activeSagas().get(orderId);
+        SagaState state = store.findByOrderId(orderId).orElseThrow();
         assertThat(state.stockValidated).isTrue();
         ArgumentCaptor<Command<?>> sent = ArgumentCaptor.forClass(Command.class);
         verify(inventoryBus, times(2)).send(sent.capture());
@@ -141,7 +144,7 @@ class SagaOrchestratorTest {
     }
 
     @Test
-    void step5_partialStockDeductedForOrder_doesNotMarkCompleted() throws Exception {
+    void step5_partialStockDeductedForOrder_persistsCountWithoutFinalizing() throws Exception {
         UUID orderId = UUID.randomUUID();
         UUID productA = UUID.randomUUID();
         UUID productB = UUID.randomUUID();
@@ -152,7 +155,7 @@ class SagaOrchestratorTest {
 
         orchestrator.handle("StockDeductedForOrder", json(new StockDeductedForOrder(orderId, productA, 9)));
 
-        SagaState state = orchestrator.activeSagas().get(orderId);
+        SagaState state = store.findByOrderId(orderId).orElseThrow();
         assertThat(state.deductedItemsCount).isEqualTo(1);
         verifyNoInteractions(orderBus);
     }
@@ -187,22 +190,18 @@ class SagaOrchestratorTest {
     }
 
     @Test
-    void step7_cartCleared_sendsSecondMarkCheckoutCompletedAndRemovesSaga_pinsKnownDoubleSendBug() throws Exception {
-        // Spec bug §5 #6: MarkCheckoutCompletedCommand is sent both at step 5 (last stock deducted)
-        // AND again here. Pinned so a future fix is intentional.
+    void step7_cartCleared_removesSagaWithoutResendingMarkCheckoutCompleted() throws Exception {
         UUID orderId = UUID.randomUUID();
         orchestrator.handle("CheckoutRequested", json(checkoutRequested(orderId, "g1", "k")));
 
         orchestrator.handle("CartCleared", json(new CartCleared("g1")));
 
-        ArgumentCaptor<Command<?>> sent = ArgumentCaptor.forClass(Command.class);
-        verify(orderBus).send(sent.capture());
-        assertThat(sent.getValue()).isInstanceOf(MarkCheckoutCompletedCommand.class);
-        assertThat(orchestrator.activeSagas()).doesNotContainKey(orderId);
+        assertThat(store.findByOrderId(orderId)).isEmpty();
+        verifyNoInteractions(orderBus);
     }
 
     @Test
-    void fullHappyPath_endsWithSagaRemovedAndMarkCheckoutCompletedSentTwice_pinsBug() throws Exception {
+    void fullHappyPath_endsWithSagaRemovedAndMarkCheckoutCompletedSentOnce() throws Exception {
         UUID orderId = UUID.randomUUID();
         UUID productA = UUID.randomUUID();
         orchestrator.handle("CheckoutRequested", json(checkoutRequested(orderId, "g1", "k")));
@@ -215,8 +214,8 @@ class SagaOrchestratorTest {
         orchestrator.handle("OrderCreated", json(new OrderCreated(orderId.toString(), "g1", "j@e")));
         orchestrator.handle("CartCleared", json(new CartCleared("g1")));
 
-        assertThat(orchestrator.activeSagas()).isEmpty();
-        verify(orderBus, times(2)).send(any(MarkCheckoutCompletedCommand.class));
+        assertThat(store.findAll()).isEmpty();
+        verify(orderBus, times(1)).send(any(MarkCheckoutCompletedCommand.class));
     }
 
     @Test
@@ -235,5 +234,41 @@ class SagaOrchestratorTest {
                 json(new StockDeductedForOrder(UUID.randomUUID(), UUID.randomUUID(), 0)));
 
         verifyNoInteractions(orderBus);
+    }
+
+    @Test
+    void store_isAccessibleViaAccessor() {
+        assertThat(orchestrator.store()).isSameAs(store);
+    }
+
+    @Test
+    void everyMutatingStepCallsStoreSave() throws Exception {
+        UUID orderId = UUID.randomUUID();
+        UUID productA = UUID.randomUUID();
+        SagaStateStore spy = mock(SagaStateStore.class);
+        when(spy.findByOrderId(any())).thenAnswer(inv -> store.findByOrderId(inv.getArgument(0)));
+        when(spy.findAll()).thenAnswer(inv -> store.findAll());
+        doAnswer(inv -> {
+            store.save(inv.getArgument(0));
+            return null;
+        }).when(spy).save(any());
+        doAnswer(inv -> {
+            store.remove(inv.getArgument(0));
+            return null;
+        }).when(spy).remove(any());
+
+        SagaOrchestrator persistentOrchestrator = new SagaOrchestrator(
+                orderBus, cartBus, catalogBus, inventoryBus, objectMapper, spy);
+
+        persistentOrchestrator.handle("CheckoutRequested", json(checkoutRequested(orderId, "g1", "k")));
+        persistentOrchestrator.handle("CartSnapshotProvided", json(new CartSnapshotProvided("g1", List.of(
+                new CartSnapshotProvided.CartItemSnapshot(productA, 1)))));
+        persistentOrchestrator.handle("ProductSnapshotsProvided", json(new ProductSnapshotsProvided(List.of(
+                new ProductSnapshotsProvided.ProductSnapshot(productA, "SKU", "W", 1.0, true)))));
+        persistentOrchestrator.handle("StockBatchValidated", json(new StockBatchValidated()));
+        persistentOrchestrator.handle("StockDeductedForOrder", json(new StockDeductedForOrder(orderId, productA, 0)));
+
+        verify(spy, times(5)).save(any());
+        verify(spy, never()).remove(any());
     }
 }

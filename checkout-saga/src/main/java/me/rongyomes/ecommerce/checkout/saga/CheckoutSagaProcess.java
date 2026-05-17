@@ -7,6 +7,7 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.DeliverCallback;
 import me.ronygomes.ecommerce.core.application.CommandBus;
+import me.ronygomes.ecommerce.core.infrastructure.MongoClientProvider;
 import me.ronygomes.ecommerce.core.infrastructure.RabbitMQCommandBus;
 
 import java.util.Map;
@@ -25,7 +26,8 @@ public class CheckoutSagaProcess {
         CommandBus inventoryBus = new RabbitMQCommandBus("inventory_commands", "localhost");
 
         ObjectMapper objectMapper = new ObjectMapper();
-        SagaOrchestrator orchestrator = new SagaOrchestrator(orderBus, cartBus, catalogBus, inventoryBus, objectMapper);
+        SagaStateStore store = new MongoSagaStateStore(new MongoClientProvider().get());
+        SagaOrchestrator orchestrator = new SagaOrchestrator(orderBus, cartBus, catalogBus, inventoryBus, objectMapper, store);
 
         String queueName = "checkout_saga_coordinator";
         channel.queueDeclare(queueName, true, false, false, null);
