@@ -6,18 +6,18 @@ import me.ronygomes.ecommerce.cart.domain.ProductId;
 import me.ronygomes.ecommerce.cart.domain.ShoppingCart;
 import me.ronygomes.ecommerce.cart.infrastructure.CartRepository;
 import me.ronygomes.ecommerce.core.application.CommandHandler;
-import me.ronygomes.ecommerce.core.messaging.MessageBus;
+import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxStore;
 
 import java.util.concurrent.CompletableFuture;
 
 public class RemoveCartItemHandler implements CommandHandler<RemoveCartItemCommand, Void> {
     private final CartRepository repository;
-    private final MessageBus messageBus;
+    private final OutboxStore outboxStore;
 
     @Inject
-    public RemoveCartItemHandler(CartRepository repository, MessageBus messageBus) {
+    public RemoveCartItemHandler(CartRepository repository, OutboxStore outboxStore) {
         this.repository = repository;
-        this.messageBus = messageBus;
+        this.outboxStore = outboxStore;
     }
 
     @Override
@@ -34,8 +34,10 @@ public class RemoveCartItemHandler implements CommandHandler<RemoveCartItemComma
                     cart.removeItem(pid);
 
                     return repository.save(cart)
-                            .thenCompose(v -> messageBus.publish(cart.getUncommittedEvents()))
-                            .thenRun(cart::clearUncommittedEvents);
+                            .thenAccept(v -> {
+                                outboxStore.append(cart.getId().toString(), cart.getUncommittedEvents());
+                                cart.clearUncommittedEvents();
+                            });
                 });
     }
 }

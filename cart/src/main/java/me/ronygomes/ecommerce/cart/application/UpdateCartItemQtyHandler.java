@@ -7,18 +7,18 @@ import me.ronygomes.ecommerce.cart.domain.Quantity;
 import me.ronygomes.ecommerce.cart.domain.ShoppingCart;
 import me.ronygomes.ecommerce.cart.infrastructure.CartRepository;
 import me.ronygomes.ecommerce.core.application.CommandHandler;
-import me.ronygomes.ecommerce.core.messaging.MessageBus;
+import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxStore;
 
 import java.util.concurrent.CompletableFuture;
 
 public class UpdateCartItemQtyHandler implements CommandHandler<UpdateCartItemQtyCommand, Void> {
     private final CartRepository repository;
-    private final MessageBus messageBus;
+    private final OutboxStore outboxStore;
 
     @Inject
-    public UpdateCartItemQtyHandler(CartRepository repository, MessageBus messageBus) {
+    public UpdateCartItemQtyHandler(CartRepository repository, OutboxStore outboxStore) {
         this.repository = repository;
-        this.messageBus = messageBus;
+        this.outboxStore = outboxStore;
     }
 
     @Override
@@ -36,8 +36,10 @@ public class UpdateCartItemQtyHandler implements CommandHandler<UpdateCartItemQt
                     cart.changeQuantity(pid, qty);
 
                     return repository.save(cart)
-                            .thenCompose(v -> messageBus.publish(cart.getUncommittedEvents()))
-                            .thenRun(cart::clearUncommittedEvents);
+                            .thenAccept(v -> {
+                                outboxStore.append(cart.getId().toString(), cart.getUncommittedEvents());
+                                cart.clearUncommittedEvents();
+                            });
                 });
     }
 }

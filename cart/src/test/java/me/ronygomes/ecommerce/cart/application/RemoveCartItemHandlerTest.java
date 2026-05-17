@@ -6,16 +6,18 @@ import me.ronygomes.ecommerce.cart.domain.ProductId;
 import me.ronygomes.ecommerce.cart.domain.Quantity;
 import me.ronygomes.ecommerce.cart.domain.ShoppingCart;
 import me.ronygomes.ecommerce.cart.infrastructure.CartRepository;
-import me.ronygomes.ecommerce.core.messaging.MessageBus;
+import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -24,18 +26,17 @@ import static org.mockito.Mockito.when;
 class RemoveCartItemHandlerTest {
 
     private final CartRepository repository = mock(CartRepository.class);
-    private final MessageBus messageBus = mock(MessageBus.class);
+    private final OutboxStore outboxStore = mock(OutboxStore.class);
     private RemoveCartItemHandler handler;
 
     @BeforeEach
     void setUp() {
-        handler = new RemoveCartItemHandler(repository, messageBus);
+        handler = new RemoveCartItemHandler(repository, outboxStore);
         when(repository.save(any())).thenReturn(CompletableFuture.completedFuture(null));
-        when(messageBus.publish(any())).thenReturn(CompletableFuture.completedFuture(null));
     }
 
     @Test
-    void handle_dropsMatchingItemAndSaves() throws Exception {
+    void handle_dropsMatchingItemAndSavesAndAppendsEmptyToOutbox() throws Exception {
         ShoppingCart cart = ShoppingCart.create(CartId.generate(), new GuestToken("g1"));
         UUID productId = UUID.randomUUID();
         cart.addItem(new ProductId(productId), new Quantity(2));
@@ -47,6 +48,8 @@ class RemoveCartItemHandlerTest {
         assertThat(cart.getItems()).hasSize(1)
                 .allSatisfy(item -> assertThat(item.getProductId().value()).isNotEqualTo(productId));
         verify(repository).save(cart);
+        // CLAUDE.md §5 #2: removeItem emits no event; append is called with empty list.
+        verify(outboxStore).append(eq(cart.getId().toString()), eq(List.of()));
     }
 
     @Test
@@ -56,5 +59,6 @@ class RemoveCartItemHandlerTest {
         handler.handle(new RemoveCartItemCommand("g1", UUID.randomUUID())).get();
 
         verify(repository, never()).save(any());
+        verify(outboxStore, never()).append(any(), any());
     }
 }

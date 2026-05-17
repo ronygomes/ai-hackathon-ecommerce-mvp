@@ -4,19 +4,19 @@ import com.google.inject.Inject;
 import me.ronygomes.ecommerce.cart.domain.*;
 import me.ronygomes.ecommerce.cart.infrastructure.CartRepository;
 import me.ronygomes.ecommerce.core.application.CommandHandler;
-import me.ronygomes.ecommerce.core.messaging.MessageBus;
+import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxStore;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 public class AddCartItemHandler implements CommandHandler<AddCartItemCommand, Void> {
     private final CartRepository repository;
-    private final MessageBus messageBus;
+    private final OutboxStore outboxStore;
 
     @Inject
-    public AddCartItemHandler(CartRepository repository, MessageBus messageBus) {
+    public AddCartItemHandler(CartRepository repository, OutboxStore outboxStore) {
         this.repository = repository;
-        this.messageBus = messageBus;
+        this.outboxStore = outboxStore;
     }
 
     @Override
@@ -28,8 +28,11 @@ public class AddCartItemHandler implements CommandHandler<AddCartItemCommand, Vo
                             new GuestToken(command.guestToken())));
 
                     cart.addItem(ProductId.fromString(command.productId().toString()), new Quantity(command.qty()));
-                    return repository.save(cart);
-                })
-                .thenCompose(v -> CompletableFuture.completedFuture(null));
+                    return repository.save(cart)
+                            .thenAccept(v -> {
+                                outboxStore.append(cart.getId().toString(), cart.getUncommittedEvents());
+                                cart.clearUncommittedEvents();
+                            });
+                });
     }
 }

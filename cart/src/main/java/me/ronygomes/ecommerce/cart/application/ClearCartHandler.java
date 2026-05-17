@@ -7,7 +7,7 @@ import me.ronygomes.ecommerce.cart.domain.CartId;
 import me.ronygomes.ecommerce.cart.domain.ShoppingCart;
 import me.ronygomes.ecommerce.cart.infrastructure.CartRepository;
 import me.ronygomes.ecommerce.core.application.CommandHandler;
-import me.ronygomes.ecommerce.core.messaging.MessageBus;
+import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxStore;
 
 import java.util.List;
 import java.util.UUID;
@@ -15,12 +15,12 @@ import java.util.concurrent.CompletableFuture;
 
 public class ClearCartHandler implements CommandHandler<ClearCartCommand, Void> {
     private final CartRepository repository;
-    private final MessageBus messageBus;
+    private final OutboxStore outboxStore;
 
     @Inject
-    public ClearCartHandler(CartRepository repository, MessageBus messageBus) {
+    public ClearCartHandler(CartRepository repository, OutboxStore outboxStore) {
         this.repository = repository;
-        this.messageBus = messageBus;
+        this.outboxStore = outboxStore;
     }
 
     @Override
@@ -31,7 +31,8 @@ public class ClearCartHandler implements CommandHandler<ClearCartCommand, Void> 
                         ShoppingCart cart = cartOpt.get();
                         cart.clear();
                         return repository.save(cart)
-                                .thenCompose(v -> messageBus.publish(List.of(new CartCleared(command.guestToken()))));
+                                .thenAccept(v -> outboxStore.append(command.guestToken(),
+                                        List.of(new CartCleared(command.guestToken()))));
                     }
                     return CompletableFuture.completedFuture(null);
                 });

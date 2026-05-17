@@ -9,7 +9,7 @@ import me.ronygomes.ecommerce.cart.domain.Quantity;
 import me.ronygomes.ecommerce.cart.domain.ShoppingCart;
 import me.ronygomes.ecommerce.cart.infrastructure.CartRepository;
 import me.ronygomes.ecommerce.core.domain.DomainEvent;
-import me.ronygomes.ecommerce.core.messaging.MessageBus;
+import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -21,6 +21,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -29,18 +30,17 @@ import static org.mockito.Mockito.when;
 class ClearCartHandlerTest {
 
     private final CartRepository repository = mock(CartRepository.class);
-    private final MessageBus messageBus = mock(MessageBus.class);
+    private final OutboxStore outboxStore = mock(OutboxStore.class);
     private ClearCartHandler handler;
 
     @BeforeEach
     void setUp() {
-        handler = new ClearCartHandler(repository, messageBus);
+        handler = new ClearCartHandler(repository, outboxStore);
         when(repository.save(any())).thenReturn(CompletableFuture.completedFuture(null));
-        when(messageBus.publish(any())).thenReturn(CompletableFuture.completedFuture(null));
     }
 
     @Test
-    void handle_clearsItemsSavesAndPublishesSagaCartCleared() throws Exception {
+    void handle_clearsItemsSavesAndAppendsSagaCartClearedToOutboxKeyedByGuestToken() throws Exception {
         UUID token = UUID.randomUUID();
         ShoppingCart cart = ShoppingCart.create(new CartId(token), new GuestToken(token.toString()));
         cart.addItem(new ProductId(UUID.randomUUID()), new Quantity(2));
@@ -50,8 +50,10 @@ class ClearCartHandlerTest {
 
         assertThat(cart.getItems()).isEmpty();
         verify(repository).save(cart);
+        // CLAUDE.md §5 #5: handler constructs a fresh CartCleared (bypasses cart.getUncommittedEvents).
+        // Outbox aggregate key is the guestToken (not the cartId) — preserves the bypass behavior.
         ArgumentCaptor<List<DomainEvent>> events = ArgumentCaptor.forClass(List.class);
-        verify(messageBus).publish(events.capture());
+        verify(outboxStore).append(eq(token.toString()), events.capture());
         assertThat(events.getValue()).singleElement()
                 .isInstanceOfSatisfying(CartCleared.class,
                         e -> assertThat(e.guestToken()).isEqualTo(token.toString()));
@@ -64,6 +66,6 @@ class ClearCartHandlerTest {
         handler.handle(new ClearCartCommand(UUID.randomUUID().toString())).get();
 
         verify(repository, never()).save(any());
-        verify(messageBus, never()).publish(any());
+        verify(outboxStore, never()).append(any(), any());
     }
 }
