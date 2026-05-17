@@ -13,7 +13,9 @@ import me.rongyomes.ecommerce.checkout.saga.message.event.CheckoutRequested;
 import me.rongyomes.ecommerce.checkout.saga.message.event.OrderCreated;
 import me.rongyomes.ecommerce.checkout.saga.message.event.ProductSnapshotsProvided;
 import me.rongyomes.ecommerce.checkout.saga.message.event.StockBatchValidated;
+import me.rongyomes.ecommerce.checkout.saga.message.event.StockBatchValidationFailed;
 import me.rongyomes.ecommerce.checkout.saga.message.event.StockDeductedForOrder;
+import me.rongyomes.ecommerce.checkout.saga.message.event.StockDeductionFailed;
 import me.ronygomes.ecommerce.core.application.CommandBus;
 
 import java.util.List;
@@ -118,6 +120,26 @@ public class SagaOrchestrator {
                         .filter(s -> s.guestToken.equals(cc.guestToken()))
                         .findFirst().orElse(null);
                 if (state != null) {
+                    store.remove(state.orderId);
+                }
+            }
+            case "StockBatchValidationFailed" -> {
+                StockBatchValidationFailed evt = objectMapper.readValue(message, StockBatchValidationFailed.class);
+                SagaState state = store.findAll().stream()
+                        .filter(s -> s.productSnapshots != null && s.cartItems != null && !s.stockValidated)
+                        .findFirst().orElse(null);
+                if (state != null) {
+                    System.err.println("Saga ABORTED for order " + state.orderId
+                            + ": stock validation failed for " + evt.rejected().size() + " item(s)");
+                    store.remove(state.orderId);
+                }
+            }
+            case "StockDeductionFailed" -> {
+                StockDeductionFailed evt = objectMapper.readValue(message, StockDeductionFailed.class);
+                SagaState state = store.findByOrderId(evt.orderId()).orElse(null);
+                if (state != null) {
+                    System.err.println("Saga ABORTED for order " + state.orderId
+                            + ": deduction failed for product " + evt.productId() + " (" + evt.reason() + ")");
                     store.remove(state.orderId);
                 }
             }

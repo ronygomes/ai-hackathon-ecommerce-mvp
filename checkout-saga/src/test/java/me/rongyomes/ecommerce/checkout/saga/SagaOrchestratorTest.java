@@ -13,7 +13,9 @@ import me.rongyomes.ecommerce.checkout.saga.message.event.CheckoutRequested;
 import me.rongyomes.ecommerce.checkout.saga.message.event.OrderCreated;
 import me.rongyomes.ecommerce.checkout.saga.message.event.ProductSnapshotsProvided;
 import me.rongyomes.ecommerce.checkout.saga.message.event.StockBatchValidated;
+import me.rongyomes.ecommerce.checkout.saga.message.event.StockBatchValidationFailed;
 import me.rongyomes.ecommerce.checkout.saga.message.event.StockDeductedForOrder;
+import me.rongyomes.ecommerce.checkout.saga.message.event.StockDeductionFailed;
 import me.ronygomes.ecommerce.core.application.Command;
 import me.ronygomes.ecommerce.core.application.CommandBus;
 import org.junit.jupiter.api.BeforeEach;
@@ -239,6 +241,56 @@ class SagaOrchestratorTest {
     @Test
     void store_isAccessibleViaAccessor() {
         assertThat(orchestrator.store()).isSameAs(store);
+    }
+
+    @Test
+    void stockBatchValidationFailed_removesSagaWaitingForValidation() throws Exception {
+        UUID orderId = UUID.randomUUID();
+        UUID productA = UUID.randomUUID();
+        orchestrator.handle("CheckoutRequested", json(checkoutRequested(orderId, "g1", "k")));
+        orchestrator.handle("CartSnapshotProvided", json(new CartSnapshotProvided("g1", List.of(
+                new CartSnapshotProvided.CartItemSnapshot(productA, 1)))));
+        orchestrator.handle("ProductSnapshotsProvided", json(new ProductSnapshotsProvided(List.of(
+                new ProductSnapshotsProvided.ProductSnapshot(productA, "SKU", "Widget", 1.0, true)))));
+
+        orchestrator.handle("StockBatchValidationFailed", json(new StockBatchValidationFailed(List.of(
+                new StockBatchValidationFailed.RejectedItem(productA, 1, 0, "Insufficient stock")))));
+
+        assertThat(store.findByOrderId(orderId)).isEmpty();
+        verifyNoInteractions(orderBus);
+    }
+
+    @Test
+    void stockBatchValidationFailed_withNoMatchingSaga_isNoOp() throws Exception {
+        orchestrator.handle("StockBatchValidationFailed", json(new StockBatchValidationFailed(List.of(
+                new StockBatchValidationFailed.RejectedItem(UUID.randomUUID(), 1, 0, "x")))));
+
+        assertThat(store.findAll()).isEmpty();
+        verifyNoInteractions(orderBus);
+    }
+
+    @Test
+    void stockDeductionFailed_removesSagaByOrderId() throws Exception {
+        UUID orderId = UUID.randomUUID();
+        UUID productA = UUID.randomUUID();
+        orchestrator.handle("CheckoutRequested", json(checkoutRequested(orderId, "g1", "k")));
+        orchestrator.handle("CartSnapshotProvided", json(new CartSnapshotProvided("g1", List.of(
+                new CartSnapshotProvided.CartItemSnapshot(productA, 5)))));
+
+        orchestrator.handle("StockDeductionFailed",
+                json(new StockDeductionFailed(orderId, productA, 5, 1, "Insufficient stock")));
+
+        assertThat(store.findByOrderId(orderId)).isEmpty();
+        verifyNoInteractions(orderBus);
+    }
+
+    @Test
+    void stockDeductionFailed_forUnknownSaga_isNoOp() throws Exception {
+        orchestrator.handle("StockDeductionFailed",
+                json(new StockDeductionFailed(UUID.randomUUID(), UUID.randomUUID(), 1, 0, "x")));
+
+        assertThat(store.findAll()).isEmpty();
+        verifyNoInteractions(orderBus);
     }
 
     @Test
