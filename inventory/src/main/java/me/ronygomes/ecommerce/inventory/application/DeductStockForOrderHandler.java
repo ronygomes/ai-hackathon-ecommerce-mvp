@@ -5,23 +5,24 @@ import me.rongyomes.ecommerce.checkout.saga.message.command.DeductStockForOrderC
 import me.rongyomes.ecommerce.checkout.saga.message.event.StockDeductionFailed;
 import me.ronygomes.ecommerce.core.application.CommandHandler;
 import me.ronygomes.ecommerce.core.infrastructure.Repository;
-import me.ronygomes.ecommerce.core.messaging.MessageBus;
+import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxStore;
 import me.ronygomes.ecommerce.inventory.domain.InventoryItem;
 import me.ronygomes.ecommerce.inventory.domain.ProductId;
 import me.ronygomes.ecommerce.inventory.domain.Quantity;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 public class DeductStockForOrderHandler implements CommandHandler<DeductStockForOrderCommand, Void> {
     private final Repository<InventoryItem, ProductId> repository;
-    private final MessageBus messageBus;
+    private final OutboxStore outboxStore;
 
     @Inject
-    public DeductStockForOrderHandler(Repository<InventoryItem, ProductId> repository, MessageBus messageBus) {
+    public DeductStockForOrderHandler(Repository<InventoryItem, ProductId> repository, OutboxStore outboxStore) {
         this.repository = repository;
-        this.messageBus = messageBus;
+        this.outboxStore = outboxStore;
     }
 
     @Override
@@ -33,7 +34,7 @@ public class DeductStockForOrderHandler implements CommandHandler<DeductStockFor
         });
     }
 
-    private void deductOne(java.util.UUID orderId, DeductStockForOrderCommand.StockItemRequest item) {
+    private void deductOne(UUID orderId, DeductStockForOrderCommand.StockItemRequest item) {
         try {
             Optional<InventoryItem> found = repository.getById(ProductId.fromString(item.productId().toString())).get();
             if (found.isEmpty()) {
@@ -49,20 +50,16 @@ public class DeductStockForOrderHandler implements CommandHandler<DeductStockFor
 
             inv.deductStock(new Quantity(item.qty()), orderId.toString());
             repository.save(inv).get();
-            messageBus.publish(inv.getUncommittedEvents()).get();
+            outboxStore.append(inv.getId().toString(), inv.getUncommittedEvents());
             inv.clearUncommittedEvents();
         } catch (Exception e) {
             publishFailure(orderId, item, 0, "Unexpected error: " + e.getMessage());
         }
     }
 
-    private void publishFailure(java.util.UUID orderId, DeductStockForOrderCommand.StockItemRequest item,
+    private void publishFailure(UUID orderId, DeductStockForOrderCommand.StockItemRequest item,
                                 int availableQty, String reason) {
-        try {
-            messageBus.publish(List.of(new StockDeductionFailed(
-                    orderId, item.productId(), item.qty(), availableQty, reason))).get();
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to publish StockDeductionFailed", e);
-        }
+        outboxStore.append(orderId.toString(), List.of(new StockDeductionFailed(
+                orderId, item.productId(), item.qty(), availableQty, reason)));
     }
 }

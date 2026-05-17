@@ -5,7 +5,7 @@ import me.rongyomes.ecommerce.checkout.saga.message.event.StockBatchValidated;
 import me.rongyomes.ecommerce.checkout.saga.message.event.StockBatchValidationFailed;
 import me.ronygomes.ecommerce.core.domain.DomainEvent;
 import me.ronygomes.ecommerce.core.infrastructure.Repository;
-import me.ronygomes.ecommerce.core.messaging.MessageBus;
+import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxStore;
 import me.ronygomes.ecommerce.inventory.domain.InventoryItem;
 import me.ronygomes.ecommerce.inventory.domain.ProductId;
 import me.ronygomes.ecommerce.inventory.domain.Quantity;
@@ -28,13 +28,12 @@ class ValidateStockBatchHandlerTest {
 
     @SuppressWarnings("unchecked")
     private final Repository<InventoryItem, ProductId> repository = mock(Repository.class);
-    private final MessageBus messageBus = mock(MessageBus.class);
+    private final OutboxStore outboxStore = mock(OutboxStore.class);
     private ValidateStockBatchHandler handler;
 
     @BeforeEach
     void setUp() {
-        handler = new ValidateStockBatchHandler(repository, messageBus);
-        when(messageBus.publish(any())).thenReturn(CompletableFuture.completedFuture(null));
+        handler = new ValidateStockBatchHandler(repository, outboxStore);
     }
 
     private static InventoryItem stocked(int qty) {
@@ -42,20 +41,22 @@ class ValidateStockBatchHandlerTest {
     }
 
     @Test
-    void handle_allAvailable_publishesStockBatchValidated() throws Exception {
+    void handle_allAvailable_appendsStockBatchValidatedToOutbox() throws Exception {
         when(repository.getById(any()))
                 .thenReturn(CompletableFuture.completedFuture(Optional.of(stocked(50))));
 
         handler.handle(new ValidateStockBatchCommand(List.of(
                 new ValidateStockBatchCommand.StockItemRequest(UUID.randomUUID(), 10)))).get();
 
-        ArgumentCaptor<List<DomainEvent>> events = ArgumentCaptor.forClass(List.class);
-        verify(messageBus).publish(events.capture());
-        assertThat(events.getValue()).singleElement().isInstanceOf(StockBatchValidated.class);
+        ArgumentCaptor<String> aggIdCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<List<DomainEvent>> eventsCaptor = ArgumentCaptor.forClass(List.class);
+        verify(outboxStore).append(aggIdCaptor.capture(), eventsCaptor.capture());
+        assertThat(aggIdCaptor.getValue()).isNotBlank();
+        assertThat(eventsCaptor.getValue()).singleElement().isInstanceOf(StockBatchValidated.class);
     }
 
     @Test
-    void handle_oneItemUnderstocked_publishesStockBatchValidationFailedWithThatItem() throws Exception {
+    void handle_oneItemUnderstocked_appendsStockBatchValidationFailedWithThatItem() throws Exception {
         UUID outOfStockProductId = UUID.randomUUID();
         when(repository.getById(any()))
                 .thenReturn(CompletableFuture.completedFuture(Optional.of(stocked(50))))
@@ -66,7 +67,7 @@ class ValidateStockBatchHandlerTest {
                 new ValidateStockBatchCommand.StockItemRequest(outOfStockProductId, 10)))).get();
 
         ArgumentCaptor<List<DomainEvent>> events = ArgumentCaptor.forClass(List.class);
-        verify(messageBus).publish(events.capture());
+        verify(outboxStore).append(any(), events.capture());
         assertThat(events.getValue()).singleElement()
                 .isInstanceOfSatisfying(StockBatchValidationFailed.class, failed -> {
                     assertThat(failed.rejected()).singleElement().satisfies(rejected -> {
@@ -79,7 +80,7 @@ class ValidateStockBatchHandlerTest {
     }
 
     @Test
-    void handle_itemNotFound_publishesStockBatchValidationFailedWithNotFoundReason() throws Exception {
+    void handle_itemNotFound_appendsStockBatchValidationFailedWithNotFoundReason() throws Exception {
         UUID missingProductId = UUID.randomUUID();
         when(repository.getById(any()))
                 .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
@@ -88,7 +89,7 @@ class ValidateStockBatchHandlerTest {
                 new ValidateStockBatchCommand.StockItemRequest(missingProductId, 1)))).get();
 
         ArgumentCaptor<List<DomainEvent>> events = ArgumentCaptor.forClass(List.class);
-        verify(messageBus).publish(events.capture());
+        verify(outboxStore).append(any(), events.capture());
         assertThat(events.getValue()).singleElement()
                 .isInstanceOfSatisfying(StockBatchValidationFailed.class, failed -> {
                     assertThat(failed.rejected()).singleElement().satisfies(rejected -> {
@@ -112,7 +113,7 @@ class ValidateStockBatchHandlerTest {
                 new ValidateStockBatchCommand.StockItemRequest(b, 5)))).get();
 
         ArgumentCaptor<List<DomainEvent>> events = ArgumentCaptor.forClass(List.class);
-        verify(messageBus).publish(events.capture());
+        verify(outboxStore).append(any(), events.capture());
         assertThat(events.getValue()).singleElement()
                 .isInstanceOfSatisfying(StockBatchValidationFailed.class,
                         failed -> assertThat(failed.rejected()).hasSize(2));

@@ -3,7 +3,7 @@ package me.ronygomes.ecommerce.inventory.application;
 import com.google.inject.Inject;
 import me.ronygomes.ecommerce.core.application.CommandHandler;
 import me.ronygomes.ecommerce.core.infrastructure.Repository;
-import me.ronygomes.ecommerce.core.messaging.MessageBus;
+import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxStore;
 import me.ronygomes.ecommerce.inventory.domain.AdjustmentReason;
 import me.ronygomes.ecommerce.inventory.domain.InventoryItem;
 import me.ronygomes.ecommerce.inventory.domain.ProductId;
@@ -13,12 +13,12 @@ import java.util.concurrent.CompletableFuture;
 
 public class SetStockHandler implements CommandHandler<SetStockCommand, Void> {
     private final Repository<InventoryItem, ProductId> repository;
-    private final MessageBus messageBus;
+    private final OutboxStore outboxStore;
 
     @Inject
-    public SetStockHandler(Repository<InventoryItem, ProductId> repository, MessageBus messageBus) {
+    public SetStockHandler(Repository<InventoryItem, ProductId> repository, OutboxStore outboxStore) {
         this.repository = repository;
-        this.messageBus = messageBus;
+        this.outboxStore = outboxStore;
     }
 
     @Override
@@ -30,8 +30,10 @@ public class SetStockHandler implements CommandHandler<SetStockCommand, Void> {
                     item.setStock(new Quantity(command.newQty()), new AdjustmentReason(command.reason()));
 
                     return repository.save(item)
-                            .thenCompose(v -> messageBus.publish(item.getUncommittedEvents()))
-                            .thenRun(item::clearUncommittedEvents);
+                            .thenAccept(v -> {
+                                outboxStore.append(item.getId().toString(), item.getUncommittedEvents());
+                                item.clearUncommittedEvents();
+                            });
                 });
     }
 }
