@@ -13,7 +13,7 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.DeliverCallback;
-import me.rongyomes.ecommerce.checkout.saga.message.command.MarkCheckoutCompletedCommand;
+import me.ronygomes.ecommerce.checkout.saga.message.command.MarkCheckoutCompletedCommand;
 import me.ronygomes.ecommerce.core.infrastructure.MongoClientProvider;
 import me.ronygomes.ecommerce.core.infrastructure.Repository;
 import me.ronygomes.ecommerce.core.infrastructure.idempotency.MongoProcessedCommandStore;

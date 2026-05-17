@@ -1,6 +1,6 @@
 package me.ronygomes.ecommerce.ordering.application;
 
-import me.rongyomes.ecommerce.checkout.saga.message.event.CheckoutRequested;
+import me.ronygomes.ecommerce.checkout.saga.message.event.CheckoutRequested;
 import me.ronygomes.ecommerce.core.domain.DomainEvent;
 import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxStore;
 import me.ronygomes.ecommerce.ordering.domain.CustomerInfo;

@@ -1,7 +1,7 @@
 package me.ronygomes.ecommerce.ordering.domain;
 
-import me.rongyomes.ecommerce.checkout.saga.message.event.CheckoutRequested;
-import me.rongyomes.ecommerce.checkout.saga.message.event.OrderCreated;
+import me.ronygomes.ecommerce.checkout.saga.message.event.CheckoutRequested;
+import me.ronygomes.ecommerce.checkout.saga.message.event.OrderCreated;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -35,7 +35,7 @@ class OrderTest {
                 key);
 
         assertThat(order.getId()).isEqualTo(orderId);
-        assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING_PAYMENT);
         assertThat(order.getOrderNumber()).isNotNull();
         assertThat(order.getUncommittedEvents()).singleElement()
                 .isInstanceOfSatisfying(CheckoutRequested.class, event -> {
@@ -52,7 +52,7 @@ class OrderTest {
 
         order.finalizeCreated();
 
-        assertThat(order.getStatus()).isEqualTo(OrderStatus.COMPLETED);
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
         assertThat(order.getUncommittedEvents()).singleElement().isInstanceOf(OrderCreated.class);
     }
 
@@ -68,6 +68,6 @@ class OrderTest {
                 List.of(),
                 new IdempotencyKey(UUID.randomUUID()));
 
-        assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING_PAYMENT);
     }
 }

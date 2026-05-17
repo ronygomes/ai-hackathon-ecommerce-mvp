@@ -1,8 +1,8 @@
 package me.ronygomes.ecommerce.inventory.application;
 
-import me.rongyomes.ecommerce.checkout.saga.message.command.ValidateStockBatchCommand;
-import me.rongyomes.ecommerce.checkout.saga.message.event.StockBatchValidated;
-import me.rongyomes.ecommerce.checkout.saga.message.event.StockBatchValidationFailed;
+import me.ronygomes.ecommerce.checkout.saga.message.command.ValidateStockBatchCommand;
+import me.ronygomes.ecommerce.checkout.saga.message.event.StockBatchValidated;
+import me.ronygomes.ecommerce.checkout.saga.message.event.StockBatchValidationFailed;
 import me.ronygomes.ecommerce.core.domain.DomainEvent;
 import me.ronygomes.ecommerce.core.infrastructure.Repository;
 import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxStore;

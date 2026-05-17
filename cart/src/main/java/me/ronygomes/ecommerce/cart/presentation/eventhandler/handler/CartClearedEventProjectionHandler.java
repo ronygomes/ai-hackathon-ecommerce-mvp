@@ -2,7 +2,7 @@ package me.ronygomes.ecommerce.cart.presentation.eventhandler.handler;
 
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Updates;
-import me.rongyomes.ecommerce.checkout.saga.message.event.CartCleared;
+import me.ronygomes.ecommerce.checkout.saga.message.event.CartCleared;
 import me.ronygomes.ecommerce.core.messaging.MessageHandler;
 import org.bson.Document;
 

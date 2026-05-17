@@ -2,7 +2,7 @@ package me.ronygomes.ecommerce.inventory.presentation.eventhandler.handler;
 
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.ReplaceOptions;
-import me.rongyomes.ecommerce.checkout.saga.message.event.StockDeductedForOrder;
+import me.ronygomes.ecommerce.checkout.saga.message.event.StockDeductedForOrder;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.junit.jupiter.api.BeforeEach;

@@ -1,8 +1,8 @@
 package me.ronygomes.ecommerce.inventory.application;
 
-import me.rongyomes.ecommerce.checkout.saga.message.command.DeductStockForOrderCommand;
-import me.rongyomes.ecommerce.checkout.saga.message.event.StockDeductedForOrder;
-import me.rongyomes.ecommerce.checkout.saga.message.event.StockDeductionFailed;
+import me.ronygomes.ecommerce.checkout.saga.message.command.DeductStockForOrderCommand;
+import me.ronygomes.ecommerce.checkout.saga.message.event.StockDeductedForOrder;
+import me.ronygomes.ecommerce.checkout.saga.message.event.StockDeductionFailed;
 import me.ronygomes.ecommerce.core.domain.DomainEvent;
 import me.ronygomes.ecommerce.core.infrastructure.Repository;
 import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxStore;

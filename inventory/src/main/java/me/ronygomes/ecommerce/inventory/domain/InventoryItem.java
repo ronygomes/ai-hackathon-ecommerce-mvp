@@ -1,6 +1,6 @@
 package me.ronygomes.ecommerce.inventory.domain;
 
-import me.rongyomes.ecommerce.checkout.saga.message.event.StockDeductedForOrder;
+import me.ronygomes.ecommerce.checkout.saga.message.event.StockDeductedForOrder;
 import me.ronygomes.ecommerce.core.domain.BaseAggregate;
 
 import java.util.UUID;

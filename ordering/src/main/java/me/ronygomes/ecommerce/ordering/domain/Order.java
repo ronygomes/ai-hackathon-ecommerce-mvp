@@ -1,7 +1,7 @@
 package me.ronygomes.ecommerce.ordering.domain;
 
-import me.rongyomes.ecommerce.checkout.saga.message.event.CheckoutRequested;
-import me.rongyomes.ecommerce.checkout.saga.message.event.OrderCreated;
+import me.ronygomes.ecommerce.checkout.saga.message.event.CheckoutRequested;
+import me.ronygomes.ecommerce.checkout.saga.message.event.OrderCreated;
 import me.ronygomes.ecommerce.core.domain.BaseAggregate;
 
 import java.util.List;
@@ -27,7 +27,7 @@ public class Order extends BaseAggregate<OrderId> {
         this.items = items;
         this.totals = totals;
         this.idempotencyKey = idempotencyKey;
-        this.status = OrderStatus.PENDING;
+        this.status = OrderStatus.PENDING_PAYMENT;
     }
 
     public static Order place(OrderId id, GuestToken guestToken, CustomerInfo customerInfo, ShippingAddress address,
@@ -55,7 +55,7 @@ public class Order extends BaseAggregate<OrderId> {
     }
 
     public void finalizeCreated() {
-        this.status = OrderStatus.COMPLETED;
+        this.status = OrderStatus.CONFIRMED;
         // Notify saga step or other systems that the order is now finalized
         addEvent(new OrderCreated(id.value().toString(), guestToken.value(), customerInfo.email()));
     }

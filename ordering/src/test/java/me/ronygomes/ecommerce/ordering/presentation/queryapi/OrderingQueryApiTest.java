@@ -37,7 +37,7 @@ class OrderingQueryApiTest {
 
     @Test
     void getOrdersByGuestToken_returnsJsonArrayOfMatchingOrders() {
-        Document order = new Document("_id", "id-1").append("guestToken", "g1").append("status", "COMPLETED");
+        Document order = new Document("_id", "id-1").append("guestToken", "g1").append("status", "CONFIRMED");
         doAnswer(inv -> {
             ArrayList<Document> target = inv.getArgument(0);
             target.add(order);

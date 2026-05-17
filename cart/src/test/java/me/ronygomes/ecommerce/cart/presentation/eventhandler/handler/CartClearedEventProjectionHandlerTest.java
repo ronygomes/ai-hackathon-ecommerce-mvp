@@ -1,7 +1,7 @@
 package me.ronygomes.ecommerce.cart.presentation.eventhandler.handler;
 
 import com.mongodb.client.MongoCollection;
-import me.rongyomes.ecommerce.checkout.saga.message.event.CartCleared;
+import me.ronygomes.ecommerce.checkout.saga.message.event.CartCleared;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.junit.jupiter.api.BeforeEach;

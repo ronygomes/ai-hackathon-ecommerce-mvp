@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.javalin.Javalin;
 import io.javalin.config.JavalinConfig;
 import io.javalin.http.HttpStatus;
-import me.rongyomes.ecommerce.checkout.saga.message.command.DeductStockForOrderCommand;
+import me.ronygomes.ecommerce.checkout.saga.message.command.DeductStockForOrderCommand;
 import me.ronygomes.ecommerce.core.application.CommandBus;
 import me.ronygomes.ecommerce.core.infrastructure.RabbitMQCommandBus;
 import me.ronygomes.ecommerce.inventory.application.SetStockCommand;

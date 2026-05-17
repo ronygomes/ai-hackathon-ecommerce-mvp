@@ -1,8 +1,8 @@
 package me.ronygomes.ecommerce.cart.application;
 
 import com.google.inject.Inject;
-import me.rongyomes.ecommerce.checkout.saga.message.command.GetCartSnapshotCommand;
-import me.rongyomes.ecommerce.checkout.saga.message.event.CartSnapshotProvided;
+import me.ronygomes.ecommerce.checkout.saga.message.command.GetCartSnapshotCommand;
+import me.ronygomes.ecommerce.checkout.saga.message.event.CartSnapshotProvided;
 import me.ronygomes.ecommerce.cart.domain.CartId;
 import me.ronygomes.ecommerce.cart.domain.GuestToken;
 import me.ronygomes.ecommerce.cart.domain.ShoppingCart;

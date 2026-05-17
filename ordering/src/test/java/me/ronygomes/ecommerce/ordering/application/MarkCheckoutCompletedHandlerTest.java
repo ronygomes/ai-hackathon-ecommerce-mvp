@@ -1,7 +1,7 @@
 package me.ronygomes.ecommerce.ordering.application;
 
-import me.rongyomes.ecommerce.checkout.saga.message.command.MarkCheckoutCompletedCommand;
-import me.rongyomes.ecommerce.checkout.saga.message.event.OrderCreated;
+import me.ronygomes.ecommerce.checkout.saga.message.command.MarkCheckoutCompletedCommand;
+import me.ronygomes.ecommerce.checkout.saga.message.event.OrderCreated;
 import me.ronygomes.ecommerce.core.domain.DomainEvent;
 import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxStore;
 import me.ronygomes.ecommerce.ordering.domain.CustomerInfo;
@@ -68,7 +68,7 @@ class MarkCheckoutCompletedHandlerTest {
 
         handler.handle(new MarkCheckoutCompletedCommand(order.getId().value())).get();
 
-        assertThat(order.getStatus()).isEqualTo(OrderStatus.COMPLETED);
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
         verify(repository).save(order);
         assertThat(appendedAggregateId.get()).isEqualTo(order.getId().toString());
         assertThat(appendedEvents.get()).singleElement().isInstanceOf(OrderCreated.class);

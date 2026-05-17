@@ -2,7 +2,7 @@ package me.ronygomes.ecommerce.ordering.presentation.eventhandler.handler;
 
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.ReplaceOptions;
-import me.rongyomes.ecommerce.checkout.saga.message.event.OrderCreated;
+import me.ronygomes.ecommerce.checkout.saga.message.event.OrderCreated;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,7 +38,7 @@ class OrderCreatedProjectionHandlerTest {
         assertThat(doc.getValue())
                 .containsEntry("_id", orderId)
                 .containsEntry("guestToken", "g1")
-                .containsEntry("status", "COMPLETED")
+                .containsEntry("status", "CONFIRMED")
                 .containsEntry("customerEmail", "jane@example.com");
     }
 

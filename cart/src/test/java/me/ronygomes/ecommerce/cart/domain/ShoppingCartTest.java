@@ -1,6 +1,6 @@
 package me.ronygomes.ecommerce.cart.domain;
 
-import me.rongyomes.ecommerce.checkout.saga.message.event.CartCleared;
+import me.ronygomes.ecommerce.checkout.saga.message.event.CartCleared;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;

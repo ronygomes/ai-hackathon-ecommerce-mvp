@@ -1,8 +1,8 @@
 package me.ronygomes.ecommerce.productcatalog.application;
 
 import com.google.inject.Inject;
-import me.rongyomes.ecommerce.checkout.saga.message.command.GetProductSnapshotsCommand;
-import me.rongyomes.ecommerce.checkout.saga.message.event.ProductSnapshotsProvided;
+import me.ronygomes.ecommerce.checkout.saga.message.command.GetProductSnapshotsCommand;
+import me.ronygomes.ecommerce.checkout.saga.message.event.ProductSnapshotsProvided;
 import me.ronygomes.ecommerce.core.application.CommandHandler;
 import me.ronygomes.ecommerce.core.infrastructure.Repository;
 import me.ronygomes.ecommerce.core.messaging.MessageBus;

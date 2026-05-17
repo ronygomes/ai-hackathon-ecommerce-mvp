@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.javalin.Javalin;
 import io.javalin.http.HttpStatus;
 import io.javalin.testtools.JavalinTest;
-import me.rongyomes.ecommerce.checkout.saga.message.command.ClearCartCommand;
+import me.ronygomes.ecommerce.checkout.saga.message.command.ClearCartCommand;
 import me.ronygomes.ecommerce.cart.application.AddCartItemCommand;
 import me.ronygomes.ecommerce.cart.application.RemoveCartItemCommand;
 import me.ronygomes.ecommerce.cart.application.UpdateCartItemQtyCommand;

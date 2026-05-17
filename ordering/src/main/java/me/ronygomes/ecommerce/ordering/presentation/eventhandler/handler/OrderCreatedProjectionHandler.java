@@ -2,7 +2,7 @@ package me.ronygomes.ecommerce.ordering.presentation.eventhandler.handler;
 
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.ReplaceOptions;
-import me.rongyomes.ecommerce.checkout.saga.message.event.OrderCreated;
+import me.ronygomes.ecommerce.checkout.saga.message.event.OrderCreated;
 import me.ronygomes.ecommerce.core.messaging.MessageHandler;
 import org.bson.Document;
 
@@ -21,7 +21,7 @@ public class OrderCreatedProjectionHandler implements MessageHandler<OrderCreate
     public CompletableFuture<Void> handle(OrderCreated event) {
         Document doc = new Document("_id", event.orderId())
                 .append("guestToken", event.guestToken())
-                .append("status", "COMPLETED") // OrderCreated is fired when finalized in this version
+                .append("status", "CONFIRMED") // OrderCreated is fired when finalized in this version
                 .append("customerEmail", event.customerEmail());
 
         collection.replaceOne(eq("_id", event.orderId()), doc, new ReplaceOptions().upsert(true));
