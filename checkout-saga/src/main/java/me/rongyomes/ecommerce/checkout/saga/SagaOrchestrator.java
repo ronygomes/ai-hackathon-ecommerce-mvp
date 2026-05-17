@@ -1,0 +1,125 @@
+package me.rongyomes.ecommerce.checkout.saga;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import me.rongyomes.ecommerce.checkout.saga.message.command.ClearCartCommand;
+import me.rongyomes.ecommerce.checkout.saga.message.command.DeductStockForOrderCommand;
+import me.rongyomes.ecommerce.checkout.saga.message.command.GetCartSnapshotCommand;
+import me.rongyomes.ecommerce.checkout.saga.message.command.GetProductSnapshotsCommand;
+import me.rongyomes.ecommerce.checkout.saga.message.command.MarkCheckoutCompletedCommand;
+import me.rongyomes.ecommerce.checkout.saga.message.command.ValidateStockBatchCommand;
+import me.rongyomes.ecommerce.checkout.saga.message.event.CartCleared;
+import me.rongyomes.ecommerce.checkout.saga.message.event.CartSnapshotProvided;
+import me.rongyomes.ecommerce.checkout.saga.message.event.CheckoutRequested;
+import me.rongyomes.ecommerce.checkout.saga.message.event.OrderCreated;
+import me.rongyomes.ecommerce.checkout.saga.message.event.ProductSnapshotsProvided;
+import me.rongyomes.ecommerce.checkout.saga.message.event.StockBatchValidated;
+import me.rongyomes.ecommerce.checkout.saga.message.event.StockDeductedForOrder;
+import me.ronygomes.ecommerce.core.application.CommandBus;
+
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+
+public class SagaOrchestrator {
+
+    private final CommandBus orderBus;
+    private final CommandBus cartBus;
+    private final CommandBus catalogBus;
+    private final CommandBus inventoryBus;
+    private final ObjectMapper objectMapper;
+    private final Map<UUID, SagaState> activeSagas = new ConcurrentHashMap<>();
+
+    public SagaOrchestrator(CommandBus orderBus, CommandBus cartBus, CommandBus catalogBus, CommandBus inventoryBus,
+                            ObjectMapper objectMapper) {
+        this.orderBus = orderBus;
+        this.cartBus = cartBus;
+        this.catalogBus = catalogBus;
+        this.inventoryBus = inventoryBus;
+        this.objectMapper = objectMapper;
+    }
+
+    public Map<UUID, SagaState> activeSagas() {
+        return activeSagas;
+    }
+
+    public void handle(String messageType, String message) throws Exception {
+        switch (messageType) {
+            case "CheckoutRequested" -> {
+                CheckoutRequested cr = objectMapper.readValue(message, CheckoutRequested.class);
+                SagaState state = new SagaState(cr.orderId(), cr.guestToken(), cr.idempotencyKey());
+                activeSagas.put(cr.orderId(), state);
+                cartBus.send(new GetCartSnapshotCommand(cr.guestToken()));
+            }
+            case "CartSnapshotProvided" -> {
+                CartSnapshotProvided csp = objectMapper.readValue(message, CartSnapshotProvided.class);
+                SagaState state = activeSagas.values().stream()
+                        .filter(s -> s.guestToken.equals(csp.guestToken()))
+                        .findFirst().orElse(null);
+                if (state != null) {
+                    state.cartItems = csp.items();
+                    state.totalItemsToDeduct = csp.items().size();
+                    List<UUID> pids = csp.items().stream()
+                            .map(CartSnapshotProvided.CartItemSnapshot::productId)
+                            .collect(Collectors.toList());
+                    catalogBus.send(new GetProductSnapshotsCommand(pids));
+                }
+            }
+            case "ProductSnapshotsProvided" -> {
+                ProductSnapshotsProvided psp = objectMapper.readValue(message, ProductSnapshotsProvided.class);
+                SagaState state = activeSagas.values().stream()
+                        .filter(s -> s.cartItems != null && s.productSnapshots == null)
+                        .findFirst().orElse(null);
+                if (state != null) {
+                    state.productSnapshots = psp.snapshots();
+                    List<ValidateStockBatchCommand.StockItemRequest> items = state.cartItems.stream()
+                            .map(i -> new ValidateStockBatchCommand.StockItemRequest(i.productId(), i.qty()))
+                            .collect(Collectors.toList());
+                    inventoryBus.send(new ValidateStockBatchCommand(items));
+                }
+            }
+            case "StockBatchValidated" -> {
+                objectMapper.readValue(message, StockBatchValidated.class);
+                SagaState state = activeSagas.values().stream()
+                        .filter(s -> s.productSnapshots != null && s.cartItems != null && !s.stockValidated)
+                        .findFirst().orElse(null);
+                if (state != null) {
+                    state.stockValidated = true;
+                    List<DeductStockForOrderCommand.StockItemRequest> items = state.cartItems.stream()
+                            .map(i -> new DeductStockForOrderCommand.StockItemRequest(i.productId(), i.qty()))
+                            .collect(Collectors.toList());
+                    inventoryBus.send(new DeductStockForOrderCommand(state.orderId, items));
+                }
+            }
+            case "StockDeductedForOrder" -> {
+                StockDeductedForOrder sdf = objectMapper.readValue(message, StockDeductedForOrder.class);
+                SagaState state = activeSagas.get(sdf.orderId());
+                if (state != null) {
+                    state.deductedItemsCount++;
+                    if (state.deductedItemsCount >= state.totalItemsToDeduct) {
+                        orderBus.send(new MarkCheckoutCompletedCommand(state.orderId));
+                    }
+                }
+            }
+            case "OrderCreated" -> {
+                OrderCreated oc = objectMapper.readValue(message, OrderCreated.class);
+                SagaState state = activeSagas.get(UUID.fromString(oc.orderId()));
+                if (state != null) {
+                    cartBus.send(new ClearCartCommand(state.guestToken));
+                }
+            }
+            case "CartCleared" -> {
+                CartCleared cc = objectMapper.readValue(message, CartCleared.class);
+                SagaState state = activeSagas.values().stream()
+                        .filter(s -> s.guestToken.equals(cc.guestToken()))
+                        .findFirst().orElse(null);
+                if (state != null) {
+                    orderBus.send(new MarkCheckoutCompletedCommand(state.orderId));
+                    activeSagas.remove(state.orderId);
+                }
+            }
+            default -> System.err.println("No handler for message type: " + messageType);
+        }
+    }
+}
