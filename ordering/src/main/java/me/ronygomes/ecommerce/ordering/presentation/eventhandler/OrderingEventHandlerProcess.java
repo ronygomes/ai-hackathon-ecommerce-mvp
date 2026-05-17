@@ -5,6 +5,7 @@ import com.mongodb.client.MongoCollection;
 import com.rabbitmq.client.*;
 import me.ronygomes.ecommerce.core.infrastructure.MongoClientProvider;
 import me.ronygomes.ecommerce.core.messaging.MessageDispatcherImpl;
+import me.ronygomes.ecommerce.core.messaging.MessageMetadata;
 import me.ronygomes.ecommerce.ordering.presentation.eventhandler.handler.OrderCreatedProjectionHandler;
 import org.bson.Document;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -43,7 +44,7 @@ public class OrderingEventHandlerProcess {
                     ? headers.get("X-Message-Type").toString()
                     : "";
 
-            dispatcher.dispatch(messageType, message)
+            dispatcher.dispatch(messageType, message, MessageMetadata.empty())
                     .thenRun(() -> {
                         try {
                             channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);

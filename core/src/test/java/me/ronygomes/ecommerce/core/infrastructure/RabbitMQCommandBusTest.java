@@ -78,4 +78,20 @@ class RabbitMQCommandBusTest {
                 .isInstanceOf(ExecutionException.class)
                 .hasMessageContaining("Failed to send command to RabbitMQ");
     }
+
+    @Test
+    void send_stampsEachMessageWithAFreshXCommandIdHeader() throws Exception {
+        bus.send(new SampleCommand("a", 1)).get();
+        bus.send(new SampleCommand("b", 2)).get();
+
+        ArgumentCaptor<AMQP.BasicProperties> propsCaptor = ArgumentCaptor.forClass(AMQP.BasicProperties.class);
+        verify(channel, org.mockito.Mockito.times(2))
+                .basicPublish(eq(""), eq("test_queue"), propsCaptor.capture(), any(byte[].class));
+
+        Object firstId = propsCaptor.getAllValues().get(0).getHeaders().get("X-Command-Id");
+        Object secondId = propsCaptor.getAllValues().get(1).getHeaders().get("X-Command-Id");
+        assertThat(firstId).asString().isNotBlank();
+        assertThat(secondId).asString().isNotBlank();
+        assertThat(firstId).isNotEqualTo(secondId);
+    }
 }

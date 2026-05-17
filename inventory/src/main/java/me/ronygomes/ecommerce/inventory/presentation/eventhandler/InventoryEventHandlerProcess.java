@@ -6,6 +6,7 @@ import com.mongodb.client.MongoDatabase;
 import com.rabbitmq.client.*;
 import me.ronygomes.ecommerce.core.infrastructure.MongoClientProvider;
 import me.ronygomes.ecommerce.core.messaging.MessageDispatcherImpl;
+import me.ronygomes.ecommerce.core.messaging.MessageMetadata;
 import me.ronygomes.ecommerce.inventory.presentation.eventhandler.handler.StockDeductedHandler;
 import me.ronygomes.ecommerce.inventory.presentation.eventhandler.handler.StockItemCreatedHandler;
 import me.ronygomes.ecommerce.inventory.presentation.eventhandler.handler.StockSetHandler;
@@ -48,7 +49,7 @@ public class InventoryEventHandlerProcess {
                     ? headers.get("X-Message-Type").toString()
                     : "";
 
-            dispatcher.dispatch(messageType, message)
+            dispatcher.dispatch(messageType, message, MessageMetadata.empty())
                     .thenRun(() -> {
                         try {
                             channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);

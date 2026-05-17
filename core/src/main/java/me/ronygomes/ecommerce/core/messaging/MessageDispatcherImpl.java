@@ -19,8 +19,8 @@ public class MessageDispatcherImpl implements MessageDispatcher {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public CompletableFuture<Void> dispatch(String messageType, String messageData) {
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public CompletableFuture<Void> dispatch(String messageType, String messageData, MessageMetadata metadata) {
         MessageHandler handler = handlers.get(messageType);
         if (handler == null) {
             System.err.println("No handler registered for message type: " + messageType);
@@ -29,7 +29,7 @@ public class MessageDispatcherImpl implements MessageDispatcher {
 
         try {
             Object message = objectMapper.readValue(messageData, handler.getMessageType());
-            return handler.handle(message);
+            return handler.handle(message, metadata);
         } catch (Exception e) {
             CompletableFuture<Void> future = new CompletableFuture<>();
             future.completeExceptionally(e);

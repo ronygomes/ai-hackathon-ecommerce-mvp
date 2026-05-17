@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 public class RabbitMQCommandBus implements CommandBus {
@@ -47,6 +48,7 @@ public class RabbitMQCommandBus implements CommandBus {
 
                 Map<String, Object> headers = new HashMap<>();
                 headers.put("X-Message-Type", command.getClass().getSimpleName());
+                headers.put("X-Command-Id", UUID.randomUUID().toString());
                 AMQP.BasicProperties props = new AMQP.BasicProperties.Builder()
                         .headers(headers)
                         .build();

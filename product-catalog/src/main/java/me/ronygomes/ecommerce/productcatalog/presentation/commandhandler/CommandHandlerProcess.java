@@ -22,6 +22,7 @@ import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxStore;
 import me.ronygomes.ecommerce.core.messaging.CommandHandlerDispatcherAdapter;
 import me.ronygomes.ecommerce.core.messaging.MessageBus;
 import me.ronygomes.ecommerce.core.messaging.MessageDispatcherImpl;
+import me.ronygomes.ecommerce.core.messaging.MessageMetadata;
 import me.ronygomes.ecommerce.productcatalog.application.ActivateProductCommand;
 import me.ronygomes.ecommerce.productcatalog.application.ActivateProductHandler;
 import me.ronygomes.ecommerce.productcatalog.application.ChangeProductPriceCommand;
@@ -109,8 +110,11 @@ public class CommandHandlerProcess {
             String messageType = headers != null && headers.containsKey("X-Message-Type")
                     ? headers.get("X-Message-Type").toString()
                     : "";
+            String commandId = headers != null && headers.get("X-Command-Id") != null
+                    ? headers.get("X-Command-Id").toString()
+                    : null;
 
-            dispatcher.dispatch(messageType, message)
+            dispatcher.dispatch(messageType, message, MessageMetadata.withCommandId(commandId))
                     .thenRun(() -> {
                         try {
                             channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);

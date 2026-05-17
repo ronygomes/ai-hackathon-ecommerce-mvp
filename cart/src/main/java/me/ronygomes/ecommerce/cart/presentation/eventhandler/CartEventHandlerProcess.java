@@ -7,6 +7,7 @@ import com.rabbitmq.client.*;
 import me.ronygomes.ecommerce.cart.presentation.eventhandler.handler.*;
 import me.ronygomes.ecommerce.core.infrastructure.MongoClientProvider;
 import me.ronygomes.ecommerce.core.messaging.MessageDispatcherImpl;
+import me.ronygomes.ecommerce.core.messaging.MessageMetadata;
 import org.bson.Document;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -48,7 +49,7 @@ public class CartEventHandlerProcess {
                     ? headers.get("X-Message-Type").toString()
                     : "";
 
-            dispatcher.dispatch(messageType, message)
+            dispatcher.dispatch(messageType, message, MessageMetadata.empty())
                     .thenRun(() -> {
                         try {
                             channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);

@@ -61,4 +61,23 @@ class CommandHandlerDispatcherAdapterTest {
 
         assertThat(adapter.getMessageType()).isEqualTo(SampleCommand.class);
     }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void handleWithMetadata_delegatesToCommandHandlerIgnoringMetadataForNow() throws Exception {
+        // 4b.5 plumbs MessageMetadata through MessageDispatcher → MessageHandler. The adapter
+        // doesn't read it yet (idempotency wiring is chunks 4c–4z); this test pins that the default
+        // delegation from MessageHandler bridges metadata-variant calls back to the no-metadata handle.
+        CommandHandler<SampleCommand, UUID> handler = mock(CommandHandler.class);
+        SampleCommand command = new SampleCommand("x");
+        when(handler.handle(eq(command))).thenReturn(CompletableFuture.completedFuture(UUID.randomUUID()));
+
+        CommandHandlerDispatcherAdapter<SampleCommand, UUID> adapter =
+                new CommandHandlerDispatcherAdapter<>(handler, SampleCommand.class);
+
+        CompletableFuture<Void> future = adapter.handle(command, MessageMetadata.withCommandId("cmd-1"));
+
+        verify(handler).handle(eq(command));
+        assertThat(future.get()).isNull();
+    }
 }

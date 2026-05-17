@@ -15,6 +15,7 @@ import me.ronygomes.ecommerce.core.infrastructure.MongoClientProvider;
 import me.ronygomes.ecommerce.core.messaging.CommandHandlerDispatcherAdapter;
 import me.ronygomes.ecommerce.core.messaging.MessageBus;
 import me.ronygomes.ecommerce.core.messaging.MessageDispatcherImpl;
+import me.ronygomes.ecommerce.core.messaging.MessageMetadata;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.Map;
@@ -60,8 +61,11 @@ public class CartCommandHandlerProcess {
             String messageType = headers != null && headers.containsKey("X-Message-Type")
                     ? headers.get("X-Message-Type").toString()
                     : "";
+            String commandId = headers != null && headers.get("X-Command-Id") != null
+                    ? headers.get("X-Command-Id").toString()
+                    : null;
 
-            dispatcher.dispatch(messageType, message)
+            dispatcher.dispatch(messageType, message, MessageMetadata.withCommandId(commandId))
                     .thenRun(() -> {
                         try {
                             channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
