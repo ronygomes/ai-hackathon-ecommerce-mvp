@@ -2,7 +2,7 @@ package me.ronygomes.ecommerce.productcatalog.application;
 
 import me.ronygomes.ecommerce.core.domain.DomainEvent;
 import me.ronygomes.ecommerce.core.infrastructure.Repository;
-import me.ronygomes.ecommerce.core.messaging.MessageBus;
+import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxStore;
 import me.ronygomes.ecommerce.productcatalog.domain.Price;
 import me.ronygomes.ecommerce.productcatalog.domain.Product;
 import me.ronygomes.ecommerce.productcatalog.domain.ProductDescription;
@@ -32,31 +32,30 @@ class ChangeProductPriceHandlerTest {
 
     @SuppressWarnings("unchecked")
     private final Repository<Product, ProductId> repository = mock(Repository.class);
-    private final MessageBus messageBus = mock(MessageBus.class);
+    private final OutboxStore outboxStore = mock(OutboxStore.class);
     private ChangeProductPriceHandler handler;
 
     @BeforeEach
     void setUp() {
-        handler = new ChangeProductPriceHandler(repository, messageBus);
+        handler = new ChangeProductPriceHandler(repository, outboxStore);
         when(repository.save(any())).thenReturn(CompletableFuture.completedFuture(null));
-        when(messageBus.publish(any())).thenReturn(CompletableFuture.completedFuture(null));
     }
 
     @Test
-    void handle_changesPriceSavesAndEmitsPriceChangedEvent() throws Exception {
+    void handle_changesPriceSavesAndAppendsPriceChangedEventToOutbox() throws Exception {
         Product existing = Product.create(new Sku("S"), new ProductName("Name"), new Price(10.0), new ProductDescription("d"));
         existing.clearUncommittedEvents();
         when(repository.getById(any())).thenReturn(CompletableFuture.completedFuture(Optional.of(existing)));
-        AtomicReference<List<DomainEvent>> published = new AtomicReference<>();
+        AtomicReference<List<DomainEvent>> appendedEvents = new AtomicReference<>();
         doAnswer(inv -> {
-            published.set(new ArrayList<>(inv.getArgument(0)));
-            return CompletableFuture.completedFuture(null);
-        }).when(messageBus).publish(any());
+            appendedEvents.set(new ArrayList<>(inv.getArgument(1)));
+            return null;
+        }).when(outboxStore).append(any(), any());
 
         handler.handle(new ChangeProductPriceCommand(UUID.randomUUID(), 25.0)).get();
 
         assertThat(existing.getPrice().value()).isEqualTo(25.0);
-        assertThat(published.get()).singleElement()
+        assertThat(appendedEvents.get()).singleElement()
                 .isInstanceOfSatisfying(ProductPriceChanged.class, e -> {
                     assertThat(e.oldPrice().value()).isEqualTo(10.0);
                     assertThat(e.newPrice().value()).isEqualTo(25.0);

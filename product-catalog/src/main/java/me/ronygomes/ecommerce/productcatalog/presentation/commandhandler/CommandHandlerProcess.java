@@ -1,27 +1,55 @@
 package me.ronygomes.ecommerce.productcatalog.presentation.commandhandler;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.google.inject.Provides;
+import com.google.inject.Singleton;
 import com.google.inject.TypeLiteral;
 import com.mongodb.client.MongoClient;
-import com.rabbitmq.client.*;
+import com.rabbitmq.client.AMQP;
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.ConnectionFactory;
+import com.rabbitmq.client.DeliverCallback;
 import me.rongyomes.ecommerce.checkout.saga.message.command.GetProductSnapshotsCommand;
 import me.ronygomes.ecommerce.core.infrastructure.MongoClientProvider;
 import me.ronygomes.ecommerce.core.infrastructure.Repository;
+import me.ronygomes.ecommerce.core.infrastructure.outbox.MongoOutboxStore;
+import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxDispatcher;
+import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxStore;
 import me.ronygomes.ecommerce.core.messaging.CommandHandlerDispatcherAdapter;
 import me.ronygomes.ecommerce.core.messaging.MessageBus;
 import me.ronygomes.ecommerce.core.messaging.MessageDispatcherImpl;
-import me.ronygomes.ecommerce.productcatalog.application.*;
+import me.ronygomes.ecommerce.productcatalog.application.ActivateProductCommand;
+import me.ronygomes.ecommerce.productcatalog.application.ActivateProductHandler;
+import me.ronygomes.ecommerce.productcatalog.application.ChangeProductPriceCommand;
+import me.ronygomes.ecommerce.productcatalog.application.ChangeProductPriceHandler;
+import me.ronygomes.ecommerce.productcatalog.application.CreateProductCommand;
+import me.ronygomes.ecommerce.productcatalog.application.CreateProductHandler;
+import me.ronygomes.ecommerce.productcatalog.application.DeactivateProductCommand;
+import me.ronygomes.ecommerce.productcatalog.application.DeactivateProductHandler;
+import me.ronygomes.ecommerce.productcatalog.application.GetProductSnapshotsHandler;
+import me.ronygomes.ecommerce.productcatalog.application.UpdateProductDetailsCommand;
+import me.ronygomes.ecommerce.productcatalog.application.UpdateProductDetailsHandler;
 import me.ronygomes.ecommerce.productcatalog.domain.Product;
 import me.ronygomes.ecommerce.productcatalog.domain.ProductId;
 import me.ronygomes.ecommerce.productcatalog.infrastructure.MongoProductRepository;
 import me.ronygomes.ecommerce.productcatalog.infrastructure.ProductCatalogMessageBus;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class CommandHandlerProcess {
+
+    private static final String DB_NAME = "aihackathon";
+    private static final String OUTBOX_COLLECTION = "product_catalog_outbox";
+    private static final int OUTBOX_BATCH_SIZE = 100;
+    private static final long OUTBOX_TICK_INTERVAL_MS = 500;
+
     static void main() throws Exception {
         Injector injector = Guice.createInjector(new ProductCatalogModule());
 
@@ -36,7 +64,6 @@ public class CommandHandlerProcess {
         ObjectMapper objectMapper = new ObjectMapper();
         MessageDispatcherImpl dispatcher = new MessageDispatcherImpl(objectMapper);
 
-        // Register handlers using Adapter
         dispatcher.registerHandler("CreateProductCommand",
                 new CommandHandlerDispatcherAdapter<>(injector.getInstance(CreateProductHandler.class),
                         CreateProductCommand.class));
@@ -55,6 +82,23 @@ public class CommandHandlerProcess {
         dispatcher.registerHandler("GetProductSnapshotsCommand",
                 new CommandHandlerDispatcherAdapter<>(injector.getInstance(GetProductSnapshotsHandler.class),
                         GetProductSnapshotsCommand.class));
+
+        OutboxDispatcher outboxDispatcher = new OutboxDispatcher(
+                injector.getInstance(OutboxStore.class),
+                injector.getInstance(MessageBus.class),
+                OUTBOX_BATCH_SIZE);
+        ScheduledExecutorService outboxScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "product-catalog-outbox-dispatcher");
+            t.setDaemon(true);
+            return t;
+        });
+        outboxScheduler.scheduleWithFixedDelay(() -> {
+            try {
+                outboxDispatcher.tick();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }, OUTBOX_TICK_INTERVAL_MS, OUTBOX_TICK_INTERVAL_MS, TimeUnit.MILLISECONDS);
 
         System.out.println("ProductCatalog CommandHandler waiting for messages (Dispatcher Pattern) on " + queueName);
 
@@ -91,6 +135,12 @@ public class CommandHandlerProcess {
             bind(com.google.inject.Key.get(new TypeLiteral<Repository<Product, ProductId>>() {
             })).to(MongoProductRepository.class);
             bind(MessageBus.class).to(ProductCatalogMessageBus.class);
+        }
+
+        @Provides
+        @Singleton
+        OutboxStore outboxStore(MongoClient mongoClient) {
+            return new MongoOutboxStore(mongoClient, DB_NAME, OUTBOX_COLLECTION);
         }
     }
 }

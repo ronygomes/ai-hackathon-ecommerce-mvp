@@ -3,7 +3,7 @@ package me.ronygomes.ecommerce.productcatalog.application;
 import com.google.inject.Inject;
 import me.ronygomes.ecommerce.core.application.CommandHandler;
 import me.ronygomes.ecommerce.core.infrastructure.Repository;
-import me.ronygomes.ecommerce.core.messaging.MessageBus;
+import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxStore;
 import me.ronygomes.ecommerce.productcatalog.domain.Product;
 import me.ronygomes.ecommerce.productcatalog.domain.ProductId;
 
@@ -11,12 +11,12 @@ import java.util.concurrent.CompletableFuture;
 
 public class ActivateProductHandler implements CommandHandler<ActivateProductCommand, Void> {
     private final Repository<Product, ProductId> repository;
-    private final MessageBus messageBus;
+    private final OutboxStore outboxStore;
 
     @Inject
-    public ActivateProductHandler(Repository<Product, ProductId> repository, MessageBus messageBus) {
+    public ActivateProductHandler(Repository<Product, ProductId> repository, OutboxStore outboxStore) {
         this.repository = repository;
-        this.messageBus = messageBus;
+        this.outboxStore = outboxStore;
     }
 
     @Override
@@ -25,8 +25,10 @@ public class ActivateProductHandler implements CommandHandler<ActivateProductCom
                 .thenCompose(opt -> opt.map(product -> {
                     product.activate();
                     return repository.save(product)
-                            .thenCompose(v -> messageBus.publish(product.getUncommittedEvents()))
-                            .thenRun(product::clearUncommittedEvents);
+                            .thenAccept(v -> {
+                                outboxStore.append(product.getId().toString(), product.getUncommittedEvents());
+                                product.clearUncommittedEvents();
+                            });
                 }).orElse(CompletableFuture.failedFuture(new RuntimeException("Product not found"))));
     }
 }

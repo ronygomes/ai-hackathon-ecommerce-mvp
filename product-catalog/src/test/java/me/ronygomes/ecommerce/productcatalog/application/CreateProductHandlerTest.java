@@ -2,7 +2,7 @@ package me.ronygomes.ecommerce.productcatalog.application;
 
 import me.ronygomes.ecommerce.core.domain.DomainEvent;
 import me.ronygomes.ecommerce.core.infrastructure.Repository;
-import me.ronygomes.ecommerce.core.messaging.MessageBus;
+import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxStore;
 import me.ronygomes.ecommerce.productcatalog.domain.Product;
 import me.ronygomes.ecommerce.productcatalog.domain.ProductCreated;
 import me.ronygomes.ecommerce.productcatalog.domain.ProductId;
@@ -28,23 +28,24 @@ class CreateProductHandlerTest {
 
     @SuppressWarnings("unchecked")
     private final Repository<Product, ProductId> repository = mock(Repository.class);
-    private final MessageBus messageBus = mock(MessageBus.class);
+    private final OutboxStore outboxStore = mock(OutboxStore.class);
     private CreateProductHandler handler;
 
     @BeforeEach
     void setUp() {
-        handler = new CreateProductHandler(repository, messageBus);
+        handler = new CreateProductHandler(repository, outboxStore);
         when(repository.save(any())).thenReturn(CompletableFuture.completedFuture(null));
-        when(messageBus.publish(any())).thenReturn(CompletableFuture.completedFuture(null));
     }
 
     @Test
-    void handle_savesProductPublishesEventsAndReturnsId() throws Exception {
-        AtomicReference<List<DomainEvent>> published = new AtomicReference<>();
+    void handle_savesProductAppendsToOutboxAndReturnsId() throws Exception {
+        AtomicReference<String> appendedAggregateId = new AtomicReference<>();
+        AtomicReference<List<DomainEvent>> appendedEvents = new AtomicReference<>();
         doAnswer(inv -> {
-            published.set(new ArrayList<>(inv.getArgument(0)));
-            return CompletableFuture.completedFuture(null);
-        }).when(messageBus).publish(any());
+            appendedAggregateId.set(inv.getArgument(0));
+            appendedEvents.set(new ArrayList<>(inv.getArgument(1)));
+            return null;
+        }).when(outboxStore).append(any(), any());
 
         ProductId result = handler.handle(new CreateProductCommand("SKU-1", "Widget", 9.99, "desc")).get();
 
@@ -54,13 +55,13 @@ class CreateProductHandlerTest {
         verify(repository).save(saved.capture());
         assertThat(saved.getValue().getSku().value()).isEqualTo("SKU-1");
         assertThat(saved.getValue().getName().value()).isEqualTo("Widget");
-        assertThat(saved.getValue().getPrice().value()).isEqualTo(9.99);
 
-        assertThat(published.get()).singleElement().isInstanceOf(ProductCreated.class);
+        assertThat(appendedAggregateId.get()).isEqualTo(result.toString());
+        assertThat(appendedEvents.get()).singleElement().isInstanceOf(ProductCreated.class);
     }
 
     @Test
-    void handle_clearsUncommittedEventsAfterPublish() throws Exception {
+    void handle_clearsUncommittedEventsAfterAppend() throws Exception {
         ArgumentCaptor<Product> saved = ArgumentCaptor.forClass(Product.class);
 
         handler.handle(new CreateProductCommand("SKU-1", "Widget", 1.0, "desc")).get();

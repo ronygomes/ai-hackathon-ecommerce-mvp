@@ -2,7 +2,7 @@ package me.ronygomes.ecommerce.productcatalog.application;
 
 import me.ronygomes.ecommerce.core.domain.DomainEvent;
 import me.ronygomes.ecommerce.core.infrastructure.Repository;
-import me.ronygomes.ecommerce.core.messaging.MessageBus;
+import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxStore;
 import me.ronygomes.ecommerce.productcatalog.domain.Price;
 import me.ronygomes.ecommerce.productcatalog.domain.Product;
 import me.ronygomes.ecommerce.productcatalog.domain.ProductDeactivated;
@@ -33,32 +33,31 @@ class DeactivateProductHandlerTest {
 
     @SuppressWarnings("unchecked")
     private final Repository<Product, ProductId> repository = mock(Repository.class);
-    private final MessageBus messageBus = mock(MessageBus.class);
+    private final OutboxStore outboxStore = mock(OutboxStore.class);
     private DeactivateProductHandler handler;
 
     @BeforeEach
     void setUp() {
-        handler = new DeactivateProductHandler(repository, messageBus);
+        handler = new DeactivateProductHandler(repository, outboxStore);
         when(repository.save(any())).thenReturn(CompletableFuture.completedFuture(null));
-        when(messageBus.publish(any())).thenReturn(CompletableFuture.completedFuture(null));
     }
 
     @Test
-    void handle_flipsInactiveAndEmitsProductDeactivated() throws Exception {
+    void handle_flipsInactiveAndAppendsProductDeactivatedToOutbox() throws Exception {
         Product existing = Product.create(new Sku("S"), new ProductName("Name"), new Price(1.0), new ProductDescription("d"));
         existing.activate();
         existing.clearUncommittedEvents();
         when(repository.getById(any())).thenReturn(CompletableFuture.completedFuture(Optional.of(existing)));
-        AtomicReference<List<DomainEvent>> published = new AtomicReference<>();
+        AtomicReference<List<DomainEvent>> appendedEvents = new AtomicReference<>();
         doAnswer(inv -> {
-            published.set(new ArrayList<>(inv.getArgument(0)));
-            return CompletableFuture.completedFuture(null);
-        }).when(messageBus).publish(any());
+            appendedEvents.set(new ArrayList<>(inv.getArgument(1)));
+            return null;
+        }).when(outboxStore).append(any(), any());
 
         handler.handle(new DeactivateProductCommand(UUID.randomUUID())).get();
 
         assertThat(existing.isActive()).isFalse();
-        assertThat(published.get()).singleElement().isInstanceOf(ProductDeactivated.class);
+        assertThat(appendedEvents.get()).singleElement().isInstanceOf(ProductDeactivated.class);
         verify(repository).save(existing);
     }
 
