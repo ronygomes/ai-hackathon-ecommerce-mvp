@@ -1,140 +1,74 @@
 package me.ronygomes.ecommerce.checkout.saga;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import me.ronygomes.ecommerce.checkout.saga.message.command.ClearCartCommand;
-import me.ronygomes.ecommerce.checkout.saga.message.command.DeductStockForOrderCommand;
-import me.ronygomes.ecommerce.checkout.saga.message.command.GetCartSnapshotCommand;
-import me.ronygomes.ecommerce.checkout.saga.message.command.GetProductSnapshotsCommand;
-import me.ronygomes.ecommerce.checkout.saga.message.command.MarkCheckoutCompletedCommand;
-import me.ronygomes.ecommerce.checkout.saga.message.command.ValidateStockBatchCommand;
-import me.ronygomes.ecommerce.checkout.saga.message.event.CartCleared;
-import me.ronygomes.ecommerce.checkout.saga.message.event.CartSnapshotProvided;
-import me.ronygomes.ecommerce.checkout.saga.message.event.CheckoutRequested;
-import me.ronygomes.ecommerce.checkout.saga.message.event.OrderCreated;
-import me.ronygomes.ecommerce.checkout.saga.message.event.ProductSnapshotsProvided;
-import me.ronygomes.ecommerce.checkout.saga.message.event.StockBatchValidated;
-import me.ronygomes.ecommerce.checkout.saga.message.event.StockBatchValidationFailed;
-import me.ronygomes.ecommerce.checkout.saga.message.event.StockDeductedForOrder;
-import me.ronygomes.ecommerce.checkout.saga.message.event.StockDeductionFailed;
+import me.ronygomes.ecommerce.checkout.saga.handler.CartClearedHandler;
+import me.ronygomes.ecommerce.checkout.saga.handler.CartSnapshotProvidedHandler;
+import me.ronygomes.ecommerce.checkout.saga.handler.CheckoutRequestedHandler;
+import me.ronygomes.ecommerce.checkout.saga.handler.OrderCreatedHandler;
+import me.ronygomes.ecommerce.checkout.saga.handler.ProductSnapshotsProvidedHandler;
+import me.ronygomes.ecommerce.checkout.saga.handler.StockBatchValidatedHandler;
+import me.ronygomes.ecommerce.checkout.saga.handler.StockBatchValidationFailedHandler;
+import me.ronygomes.ecommerce.checkout.saga.handler.StockDeductedForOrderHandler;
+import me.ronygomes.ecommerce.checkout.saga.handler.StockDeductionFailedHandler;
 import me.ronygomes.ecommerce.core.application.CommandBus;
+import me.ronygomes.ecommerce.core.messaging.MessageDispatcher;
+import me.ronygomes.ecommerce.core.messaging.MessageDispatcherImpl;
+import me.ronygomes.ecommerce.core.messaging.MessageMetadata;
 
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
+import java.util.concurrent.CompletionException;
 
+/**
+ * Wires up the saga's per-message-type handlers on a {@link MessageDispatcher} and exposes
+ * a synchronous {@link #handle(String, String)} entry point for tests and the
+ * {@code CheckoutSagaProcess} consumer loop.
+ *
+ * <p>Each branch of the previous {@code switch(messageType)} now lives in its own
+ * {@code MessageHandler<T>} under {@code saga.handler/}, mirroring how every subsystem
+ * registers handlers on a {@link MessageDispatcher}.
+ */
 public class SagaOrchestrator {
 
-    private final CommandBus orderBus;
-    private final CommandBus cartBus;
-    private final CommandBus catalogBus;
-    private final CommandBus inventoryBus;
-    private final ObjectMapper objectMapper;
     private final SagaStateStore store;
+    private final MessageDispatcher dispatcher;
 
     public SagaOrchestrator(CommandBus orderBus, CommandBus cartBus, CommandBus catalogBus, CommandBus inventoryBus,
                             ObjectMapper objectMapper, SagaStateStore store) {
-        this.orderBus = orderBus;
-        this.cartBus = cartBus;
-        this.catalogBus = catalogBus;
-        this.inventoryBus = inventoryBus;
-        this.objectMapper = objectMapper;
         this.store = store;
+        MessageDispatcherImpl impl = new MessageDispatcherImpl(objectMapper);
+        impl.registerHandler("CheckoutRequested", new CheckoutRequestedHandler(cartBus, store));
+        impl.registerHandler("CartSnapshotProvided", new CartSnapshotProvidedHandler(catalogBus, store));
+        impl.registerHandler("ProductSnapshotsProvided", new ProductSnapshotsProvidedHandler(inventoryBus, store));
+        impl.registerHandler("StockBatchValidated", new StockBatchValidatedHandler(inventoryBus, store));
+        impl.registerHandler("StockDeductedForOrder", new StockDeductedForOrderHandler(orderBus, store));
+        impl.registerHandler("OrderCreated", new OrderCreatedHandler(cartBus, store));
+        impl.registerHandler("CartCleared", new CartClearedHandler(store));
+        impl.registerHandler("StockBatchValidationFailed", new StockBatchValidationFailedHandler(store));
+        impl.registerHandler("StockDeductionFailed", new StockDeductionFailedHandler(store));
+        this.dispatcher = impl;
     }
 
     public SagaStateStore store() {
         return store;
     }
 
+    public MessageDispatcher dispatcher() {
+        return dispatcher;
+    }
+
+    /**
+     * Synchronous entry point preserved for test compatibility and the consumer loop.
+     * Unwraps the {@link CompletionException} that {@code CompletableFuture#join()} would
+     * otherwise raise so callers see the original cause directly.
+     */
     public void handle(String messageType, String message) throws Exception {
-        switch (messageType) {
-            case "CheckoutRequested" -> {
-                CheckoutRequested cr = objectMapper.readValue(message, CheckoutRequested.class);
-                UUID correlationId = UUID.randomUUID();
-                SagaState state = new SagaState(cr.orderId(), correlationId, cr.guestToken(), cr.idempotencyKey());
-                store.save(state);
-                cartBus.send(new GetCartSnapshotCommand(cr.guestToken(), correlationId));
+        try {
+            dispatcher.dispatch(messageType, message, MessageMetadata.empty()).join();
+        } catch (CompletionException ce) {
+            Throwable cause = ce.getCause();
+            if (cause instanceof Exception e) {
+                throw e;
             }
-            case "CartSnapshotProvided" -> {
-                CartSnapshotProvided csp = objectMapper.readValue(message, CartSnapshotProvided.class);
-                SagaState state = store.findByCorrelationId(csp.correlationId()).orElse(null);
-                if (state != null) {
-                    state.cartItems = csp.items();
-                    state.totalItemsToDeduct = csp.items().size();
-                    store.save(state);
-                    List<UUID> pids = csp.items().stream()
-                            .map(CartSnapshotProvided.CartItemSnapshot::productId)
-                            .collect(Collectors.toList());
-                    catalogBus.send(new GetProductSnapshotsCommand(pids, state.correlationId));
-                }
-            }
-            case "ProductSnapshotsProvided" -> {
-                ProductSnapshotsProvided psp = objectMapper.readValue(message, ProductSnapshotsProvided.class);
-                SagaState state = store.findByCorrelationId(psp.correlationId()).orElse(null);
-                if (state != null) {
-                    state.productSnapshots = psp.snapshots();
-                    store.save(state);
-                    List<ValidateStockBatchCommand.StockItemRequest> items = state.cartItems.stream()
-                            .map(i -> new ValidateStockBatchCommand.StockItemRequest(i.productId(), i.qty()))
-                            .collect(Collectors.toList());
-                    inventoryBus.send(new ValidateStockBatchCommand(items, state.correlationId));
-                }
-            }
-            case "StockBatchValidated" -> {
-                StockBatchValidated sbv = objectMapper.readValue(message, StockBatchValidated.class);
-                SagaState state = store.findByCorrelationId(sbv.correlationId()).orElse(null);
-                if (state != null) {
-                    state.stockValidated = true;
-                    store.save(state);
-                    List<DeductStockForOrderCommand.StockItemRequest> items = state.cartItems.stream()
-                            .map(i -> new DeductStockForOrderCommand.StockItemRequest(i.productId(), i.qty()))
-                            .collect(Collectors.toList());
-                    inventoryBus.send(new DeductStockForOrderCommand(state.orderId, items));
-                }
-            }
-            case "StockDeductedForOrder" -> {
-                StockDeductedForOrder sdf = objectMapper.readValue(message, StockDeductedForOrder.class);
-                SagaState state = store.findByOrderId(sdf.orderId()).orElse(null);
-                if (state != null) {
-                    state.deductedItemsCount++;
-                    store.save(state);
-                    if (state.deductedItemsCount >= state.totalItemsToDeduct) {
-                        orderBus.send(new MarkCheckoutCompletedCommand(state.orderId));
-                    }
-                }
-            }
-            case "OrderCreated" -> {
-                OrderCreated oc = objectMapper.readValue(message, OrderCreated.class);
-                SagaState state = store.findByOrderId(UUID.fromString(oc.orderId())).orElse(null);
-                if (state != null) {
-                    cartBus.send(new ClearCartCommand(state.guestToken, state.correlationId));
-                }
-            }
-            case "CartCleared" -> {
-                CartCleared cc = objectMapper.readValue(message, CartCleared.class);
-                SagaState state = store.findByCorrelationId(cc.correlationId()).orElse(null);
-                if (state != null) {
-                    store.remove(state.orderId);
-                }
-            }
-            case "StockBatchValidationFailed" -> {
-                StockBatchValidationFailed evt = objectMapper.readValue(message, StockBatchValidationFailed.class);
-                SagaState state = store.findByCorrelationId(evt.correlationId()).orElse(null);
-                if (state != null) {
-                    System.err.println("Saga ABORTED for order " + state.orderId
-                            + ": stock validation failed for " + evt.rejected().size() + " item(s)");
-                    store.remove(state.orderId);
-                }
-            }
-            case "StockDeductionFailed" -> {
-                StockDeductionFailed evt = objectMapper.readValue(message, StockDeductionFailed.class);
-                SagaState state = store.findByOrderId(evt.orderId()).orElse(null);
-                if (state != null) {
-                    System.err.println("Saga ABORTED for order " + state.orderId
-                            + ": deduction failed for product " + evt.productId() + " (" + evt.reason() + ")");
-                    store.remove(state.orderId);
-                }
-            }
-            default -> System.err.println("No handler for message type: " + messageType);
+            throw ce;
         }
     }
 }
