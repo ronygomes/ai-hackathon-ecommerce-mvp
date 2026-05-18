@@ -22,8 +22,7 @@ public class Product extends BaseAggregate<ProductId> {
         this.isActive = false;
     }
 
-    public static Product create(Sku sku, ProductName name, Price price, ProductDescription description) {
-        ProductId id = ProductId.generate();
+    public static Product create(ProductId id, Sku sku, ProductName name, Price price, ProductDescription description) {
         Product product = new Product(id, sku, name, price, description);
         product.addEvent(new ProductCreated(id, sku, name, price, description));
         return product;

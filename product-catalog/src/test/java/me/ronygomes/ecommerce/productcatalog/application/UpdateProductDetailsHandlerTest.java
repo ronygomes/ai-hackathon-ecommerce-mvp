@@ -44,7 +44,7 @@ class UpdateProductDetailsHandlerTest {
 
     @Test
     void handle_mutatesAggregateSavesAndAppendsUpdateEventToOutbox() throws Exception {
-        Product existing = Product.create(new Sku("S"), new ProductName("Old"), new Price(1.0), new ProductDescription("d"));
+        Product existing = Product.create(ProductId.generate(), new Sku("S"), new ProductName("Old"), new Price(1.0), new ProductDescription("d"));
         existing.clearUncommittedEvents();
         when(repository.getById(any())).thenReturn(CompletableFuture.completedFuture(Optional.of(existing)));
         AtomicReference<String> appendedAggregateId = new AtomicReference<>();
@@ -76,7 +76,7 @@ class UpdateProductDetailsHandlerTest {
 
     @Test
     void handle_clearsUncommittedEventsAfterAppend() throws Exception {
-        Product existing = Product.create(new Sku("S"), new ProductName("Old"), new Price(1.0), new ProductDescription("d"));
+        Product existing = Product.create(ProductId.generate(), new Sku("S"), new ProductName("Old"), new Price(1.0), new ProductDescription("d"));
         existing.clearUncommittedEvents();
         when(repository.getById(any())).thenReturn(CompletableFuture.completedFuture(Optional.of(existing)));
 

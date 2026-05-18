@@ -44,7 +44,7 @@ class DeactivateProductHandlerTest {
 
     @Test
     void handle_flipsInactiveAndAppendsProductDeactivatedToOutbox() throws Exception {
-        Product existing = Product.create(new Sku("S"), new ProductName("Name"), new Price(1.0), new ProductDescription("d"));
+        Product existing = Product.create(ProductId.generate(), new Sku("S"), new ProductName("Name"), new Price(1.0), new ProductDescription("d"));
         existing.activate();
         existing.clearUncommittedEvents();
         when(repository.getById(any())).thenReturn(CompletableFuture.completedFuture(Optional.of(existing)));

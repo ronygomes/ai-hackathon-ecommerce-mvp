@@ -39,7 +39,7 @@ public class CommandApiTest {
     }
 
     @Test
-    void postProducts_withValidData_shouldReturn202() {
+    void postProducts_withValidData_shouldReturn202WithServerGeneratedProductId() {
         String body = """
                 {
                     "sku": "SKU-123",
@@ -59,12 +59,17 @@ public class CommandApiTest {
             verify(validator).validate(commandCaptor.capture());
 
             CreateProductCommand capturedCommand = commandCaptor.getValue();
+            assertThat(capturedCommand.productId()).isNotNull();
             assertThat(capturedCommand.sku()).isEqualTo("SKU-123");
             assertThat(capturedCommand.name()).isEqualTo("Product Name");
             assertThat(capturedCommand.price()).isEqualTo(99.99);
             assertThat(capturedCommand.description()).isEqualTo("Product Description");
 
             verify(commandBus).send(Mockito.eq(capturedCommand));
+
+            // Server-generated productId is echoed in the 202 body so the client can poll for it.
+            assertThat(response.body().string())
+                    .contains("\"productId\":\"" + capturedCommand.productId() + "\"");
         });
     }
 

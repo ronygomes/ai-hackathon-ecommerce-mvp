@@ -41,6 +41,7 @@ class PlaceOrderHandlerTest {
 
     private static PlaceOrderCommand sampleCommand(UUID idempotencyKey) {
         return new PlaceOrderCommand(
+                UUID.randomUUID(),
                 "g1",
                 "g1",
                 new CustomerInfo("Jane", "+1", "jane@example.com"),
@@ -61,11 +62,22 @@ class PlaceOrderHandlerTest {
             return null;
         }).when(outboxStore).append(any(), any());
 
-        UUID result = handler.handle(sampleCommand(UUID.randomUUID())).get();
+        UUID providedOrderId = UUID.randomUUID();
+        PlaceOrderCommand command = new PlaceOrderCommand(
+                providedOrderId,
+                "g1",
+                "g1",
+                new CustomerInfo("Jane", "+1", "jane@example.com"),
+                new ShippingAddress("1 Main", "Anytown", "12345", "USA"),
+                UUID.randomUUID().toString(),
+                List.of(new PlaceOrderCommand.OrderItemRequest(
+                        UUID.randomUUID(), "SKU-1", "Widget", 10.0, 2)));
 
-        assertThat(result).isNotNull();
+        UUID result = handler.handle(command).get();
+
+        assertThat(result).isEqualTo(providedOrderId);
         verify(repository).save(any(Order.class));
-        assertThat(appendedAggregateId.get()).isEqualTo(result.toString());
+        assertThat(appendedAggregateId.get()).isEqualTo(providedOrderId.toString());
         assertThat(appendedEvents.get()).singleElement().isInstanceOf(CheckoutRequested.class);
     }
 
@@ -98,6 +110,7 @@ class PlaceOrderHandlerTest {
 
     private PlaceOrderCommand sampleCommand_withInvalidKey() {
         return new PlaceOrderCommand(
+                UUID.randomUUID(),
                 "g1",
                 "g1",
                 new CustomerInfo("Jane", "+1", "j@e"),

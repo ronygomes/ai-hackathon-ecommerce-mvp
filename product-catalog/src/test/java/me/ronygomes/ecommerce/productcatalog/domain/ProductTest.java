@@ -8,6 +8,7 @@ class ProductTest {
 
     private static Product newProduct() {
         return Product.create(
+                ProductId.generate(),
                 new Sku("SKU-123"),
                 new ProductName("Test Product"),
                 new Price(99.99),

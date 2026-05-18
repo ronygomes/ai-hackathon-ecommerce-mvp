@@ -40,7 +40,7 @@ class GetProductSnapshotsHandlerTest {
     }
 
     private static Product activeProduct(String sku, String name, double price) {
-        Product p = Product.create(new Sku(sku), new ProductName(name), new Price(price), new ProductDescription("d"));
+        Product p = Product.create(ProductId.generate(), new Sku(sku), new ProductName(name), new Price(price), new ProductDescription("d"));
         p.activate();
         return p;
     }

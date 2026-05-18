@@ -12,6 +12,7 @@ import org.mockito.ArgumentCaptor;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
@@ -47,12 +48,14 @@ class CreateProductHandlerTest {
             return null;
         }).when(outboxStore).append(any(), any());
 
-        ProductId result = handler.handle(new CreateProductCommand("SKU-1", "Widget", 9.99, "desc")).get();
+        UUID productId = UUID.randomUUID();
+        ProductId result = handler.handle(new CreateProductCommand(productId, "SKU-1", "Widget", 9.99, "desc")).get();
 
-        assertThat(result).isNotNull();
+        assertThat(result).isEqualTo(new ProductId(productId));
 
         ArgumentCaptor<Product> saved = ArgumentCaptor.forClass(Product.class);
         verify(repository).save(saved.capture());
+        assertThat(saved.getValue().getId()).isEqualTo(new ProductId(productId));
         assertThat(saved.getValue().getSku().value()).isEqualTo("SKU-1");
         assertThat(saved.getValue().getName().value()).isEqualTo("Widget");
 
@@ -64,7 +67,7 @@ class CreateProductHandlerTest {
     void handle_clearsUncommittedEventsAfterAppend() throws Exception {
         ArgumentCaptor<Product> saved = ArgumentCaptor.forClass(Product.class);
 
-        handler.handle(new CreateProductCommand("SKU-1", "Widget", 1.0, "desc")).get();
+        handler.handle(new CreateProductCommand(UUID.randomUUID(), "SKU-1", "Widget", 1.0, "desc")).get();
 
         verify(repository).save(saved.capture());
         assertThat(saved.getValue().getUncommittedEvents()).isEmpty();
@@ -72,7 +75,7 @@ class CreateProductHandlerTest {
 
     @Test
     void handle_invalidDomainInputs_propagateAsFailedFuture() {
-        CreateProductCommand command = new CreateProductCommand("SKU-1", "Widget", -1.0, "desc");
+        CreateProductCommand command = new CreateProductCommand(UUID.randomUUID(), "SKU-1", "Widget", -1.0, "desc");
 
         assertThatThrownBy(() -> handler.handle(command).get())
                 .isInstanceOf(ExecutionException.class)
@@ -84,7 +87,7 @@ class CreateProductHandlerTest {
         when(repository.save(any()))
                 .thenReturn(CompletableFuture.failedFuture(new RuntimeException("mongo down")));
 
-        assertThatThrownBy(() -> handler.handle(new CreateProductCommand("SKU-1", "Widget", 1.0, "d")).get())
+        assertThatThrownBy(() -> handler.handle(new CreateProductCommand(UUID.randomUUID(), "SKU-1", "Widget", 1.0, "d")).get())
                 .isInstanceOf(ExecutionException.class)
                 .hasMessageContaining("mongo down");
     }

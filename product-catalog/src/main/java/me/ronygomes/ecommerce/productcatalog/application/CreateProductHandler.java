@@ -21,6 +21,7 @@ public class CreateProductHandler implements CommandHandler<CreateProductCommand
     @Override
     public CompletableFuture<ProductId> handle(CreateProductCommand command) {
         return CompletableFuture.supplyAsync(() -> Product.create(
+                        new ProductId(command.productId()),
                         new Sku(command.sku()),
                         new ProductName(command.name()),
                         new Price(command.price()),

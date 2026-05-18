@@ -44,7 +44,7 @@ class ActivateProductHandlerTest {
 
     @Test
     void handle_flipsActiveAndAppendsProductActivatedToOutbox() throws Exception {
-        Product existing = Product.create(new Sku("S"), new ProductName("Name"), new Price(1.0), new ProductDescription("d"));
+        Product existing = Product.create(ProductId.generate(), new Sku("S"), new ProductName("Name"), new Price(1.0), new ProductDescription("d"));
         existing.clearUncommittedEvents();
         when(repository.getById(any())).thenReturn(CompletableFuture.completedFuture(Optional.of(existing)));
         AtomicReference<List<DomainEvent>> appendedEvents = new AtomicReference<>();

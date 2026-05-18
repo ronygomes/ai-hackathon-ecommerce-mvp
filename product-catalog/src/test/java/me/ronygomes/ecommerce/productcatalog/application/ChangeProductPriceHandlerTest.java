@@ -43,7 +43,7 @@ class ChangeProductPriceHandlerTest {
 
     @Test
     void handle_changesPriceSavesAndAppendsPriceChangedEventToOutbox() throws Exception {
-        Product existing = Product.create(new Sku("S"), new ProductName("Name"), new Price(10.0), new ProductDescription("d"));
+        Product existing = Product.create(ProductId.generate(), new Sku("S"), new ProductName("Name"), new Price(10.0), new ProductDescription("d"));
         existing.clearUncommittedEvents();
         when(repository.getById(any())).thenReturn(CompletableFuture.completedFuture(Optional.of(existing)));
         AtomicReference<List<DomainEvent>> appendedEvents = new AtomicReference<>();
@@ -73,7 +73,7 @@ class ChangeProductPriceHandlerTest {
 
     @Test
     void handle_negativePrice_propagatesValidationFailure() {
-        Product existing = Product.create(new Sku("S"), new ProductName("Name"), new Price(10.0), new ProductDescription("d"));
+        Product existing = Product.create(ProductId.generate(), new Sku("S"), new ProductName("Name"), new Price(10.0), new ProductDescription("d"));
         when(repository.getById(any())).thenReturn(CompletableFuture.completedFuture(Optional.of(existing)));
 
         assertThatThrownBy(() -> handler.handle(new ChangeProductPriceCommand(UUID.randomUUID(), -1.0)).get())

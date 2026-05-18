@@ -35,7 +35,7 @@ public class PlaceOrderHandler implements CommandHandler<PlaceOrderCommand, UUID
                             .map(i -> new OrderLineItem(i.productId(), i.sku(), i.name(), i.unitPrice(), i.qty()))
                             .collect(Collectors.toList());
 
-                    OrderId orderId = OrderId.generate();
+                    OrderId orderId = new OrderId(command.orderId());
                     Order order = Order.place(
                             orderId,
                             new GuestToken(command.guestToken()),
