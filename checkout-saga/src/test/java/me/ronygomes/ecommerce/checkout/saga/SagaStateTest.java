@@ -15,10 +15,12 @@ class SagaStateTest {
     @Test
     void construct_initialisesCorrelationFieldsAndDefaults() {
         UUID orderId = UUID.randomUUID();
+        UUID correlationId = UUID.randomUUID();
 
-        SagaState state = new SagaState(orderId, "guest-1", "idem-1");
+        SagaState state = new SagaState(orderId, correlationId, "guest-1", "idem-1");
 
         assertThat(state.orderId).isEqualTo(orderId);
+        assertThat(state.correlationId).isEqualTo(correlationId);
         assertThat(state.guestToken).isEqualTo("guest-1");
         assertThat(state.idempotencyKey).isEqualTo("idem-1");
         assertThat(state.stockValidated).isFalse();
@@ -31,8 +33,9 @@ class SagaStateTest {
     @Test
     void jacksonRoundTrip_preservesAllFields() throws Exception {
         UUID orderId = UUID.randomUUID();
+        UUID correlationId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
-        SagaState state = new SagaState(orderId, "g1", "k1");
+        SagaState state = new SagaState(orderId, correlationId, "g1", "k1");
         state.stockValidated = true;
         state.totalItemsToDeduct = 3;
         state.deductedItemsCount = 2;
@@ -44,6 +47,7 @@ class SagaStateTest {
         SagaState roundTripped = mapper.readValue(json, SagaState.class);
 
         assertThat(roundTripped.orderId).isEqualTo(orderId);
+        assertThat(roundTripped.correlationId).isEqualTo(correlationId);
         assertThat(roundTripped.guestToken).isEqualTo("g1");
         assertThat(roundTripped.idempotencyKey).isEqualTo("k1");
         assertThat(roundTripped.stockValidated).isTrue();

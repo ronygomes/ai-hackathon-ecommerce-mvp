@@ -44,6 +44,7 @@ class ClearCartHandlerTest {
     @Test
     void handle_clearsItemsSavesAndPushesAggregateCartClearedToOutbox() throws Exception {
         UUID token = UUID.randomUUID();
+        UUID correlationId = UUID.randomUUID();
         ShoppingCart cart = ShoppingCart.create(new CartId(token), new GuestToken(token.toString()));
         cart.addItem(new ProductId(UUID.randomUUID()), new Quantity(2));
         cart.clearUncommittedEvents(); // discard setup events
@@ -51,22 +52,24 @@ class ClearCartHandlerTest {
         AtomicReference<List<DomainEvent>> appended = snapshotAppendedEvents();
         ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
 
-        handler.handle(new ClearCartCommand(token.toString())).get();
+        handler.handle(new ClearCartCommand(token.toString(), correlationId)).get();
 
         assertThat(cart.getItems()).isEmpty();
         verify(repository).save(cart);
         verify(outboxStore).append(keyCaptor.capture(), any());
         assertThat(keyCaptor.getValue()).isEqualTo(cart.getId().toString());
         assertThat(appended.get()).singleElement()
-                .isInstanceOfSatisfying(CartCleared.class,
-                        e -> assertThat(e.guestToken()).isEqualTo(token.toString()));
+                .isInstanceOfSatisfying(CartCleared.class, e -> {
+                    assertThat(e.guestToken()).isEqualTo(token.toString());
+                    assertThat(e.correlationId()).isEqualTo(correlationId);
+                });
     }
 
     @Test
     void handle_cartMissing_isNoOp() throws Exception {
         when(repository.getById(any())).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
-        handler.handle(new ClearCartCommand(UUID.randomUUID().toString())).get();
+        handler.handle(new ClearCartCommand(UUID.randomUUID().toString(), UUID.randomUUID())).get();
 
         verify(repository, never()).save(any());
         verify(outboxStore, never()).append(any(), any());

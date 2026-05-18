@@ -7,6 +7,8 @@ import org.bson.conversions.Bson;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.UUID;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -25,7 +27,7 @@ class CartClearedEventProjectionHandlerTest {
 
     @Test
     void handle_clearsItemsArrayOnCartProjection() throws Exception {
-        handler.handle(new CartCleared("guest-1")).get();
+        handler.handle(new CartCleared("guest-1", UUID.randomUUID())).get();
 
         verify(collection).updateOne(any(Bson.class), any(Bson.class));
     }

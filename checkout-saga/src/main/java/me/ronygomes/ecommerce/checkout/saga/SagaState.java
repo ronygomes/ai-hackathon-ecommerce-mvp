@@ -10,6 +10,7 @@ import java.util.UUID;
 
 public class SagaState {
     public final UUID orderId;
+    public final UUID correlationId;
     public final String guestToken;
     public final String idempotencyKey;
 
@@ -22,9 +23,11 @@ public class SagaState {
 
     @JsonCreator
     public SagaState(@JsonProperty("orderId") UUID orderId,
+                     @JsonProperty("correlationId") UUID correlationId,
                      @JsonProperty("guestToken") String guestToken,
                      @JsonProperty("idempotencyKey") String idempotencyKey) {
         this.orderId = orderId;
+        this.correlationId = correlationId;
         this.guestToken = guestToken;
         this.idempotencyKey = idempotencyKey;
     }

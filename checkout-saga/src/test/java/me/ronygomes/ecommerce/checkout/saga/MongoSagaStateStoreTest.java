@@ -93,7 +93,8 @@ class MongoSagaStateStoreTest {
     @Test
     void save_serializesAndUpsertsKeyedByOrderId() {
         UUID orderId = UUID.randomUUID();
-        SagaState state = new SagaState(orderId, "g1", "k1");
+        UUID correlationId = UUID.randomUUID();
+        SagaState state = new SagaState(orderId, correlationId, "g1", "k1");
         state.totalItemsToDeduct = 4;
 
         store.save(state);
@@ -102,9 +103,27 @@ class MongoSagaStateStoreTest {
         ArgumentCaptor<ReplaceOptions> opts = ArgumentCaptor.forClass(ReplaceOptions.class);
         verify(collection).replaceOne(any(Bson.class), doc.capture(), opts.capture());
         assertThat(doc.getValue().getString("_id")).isEqualTo(orderId.toString());
+        assertThat(doc.getValue().getString("correlationId")).isEqualTo(correlationId.toString());
         assertThat(doc.getValue().getString("guestToken")).isEqualTo("g1");
         assertThat(doc.getValue().getInteger("totalItemsToDeduct")).isEqualTo(4);
         assertThat(opts.getValue().isUpsert()).isTrue();
+    }
+
+    @Test
+    void findByCorrelationId_queriesByCorrelationIdField() {
+        UUID orderId = UUID.randomUUID();
+        UUID correlationId = UUID.randomUUID();
+        Document doc = Document.parse("{\"orderId\":\"" + orderId + "\",\"correlationId\":\""
+                + correlationId + "\",\"guestToken\":\"g1\",\"idempotencyKey\":\"k1\"}");
+        doc.put("_id", orderId.toString());
+        when(findOneIterable.first()).thenReturn(doc);
+
+        Optional<SagaState> result = store.findByCorrelationId(correlationId);
+
+        assertThat(result).hasValueSatisfying(state -> {
+            assertThat(state.orderId).isEqualTo(orderId);
+            assertThat(state.correlationId).isEqualTo(correlationId);
+        });
     }
 
     @Test

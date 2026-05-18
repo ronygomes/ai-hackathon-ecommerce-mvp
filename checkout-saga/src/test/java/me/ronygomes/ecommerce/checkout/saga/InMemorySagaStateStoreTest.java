@@ -24,7 +24,7 @@ class InMemorySagaStateStoreTest {
     @Test
     void save_thenFindByOrderId_roundTrips() {
         UUID orderId = UUID.randomUUID();
-        SagaState state = new SagaState(orderId, "g1", "k1");
+        SagaState state = new SagaState(orderId, UUID.randomUUID(), "g1", "k1");
 
         store.save(state);
 
@@ -34,8 +34,8 @@ class InMemorySagaStateStoreTest {
     @Test
     void save_overwritesExistingState() {
         UUID orderId = UUID.randomUUID();
-        SagaState first = new SagaState(orderId, "g1", "k1");
-        SagaState replacement = new SagaState(orderId, "g2", "k2");
+        SagaState first = new SagaState(orderId, UUID.randomUUID(), "g1", "k1");
+        SagaState replacement = new SagaState(orderId, UUID.randomUUID(), "g2", "k2");
         store.save(first);
 
         store.save(replacement);
@@ -45,8 +45,8 @@ class InMemorySagaStateStoreTest {
 
     @Test
     void findAll_returnsEverySavedState() {
-        SagaState a = new SagaState(UUID.randomUUID(), "ga", "ka");
-        SagaState b = new SagaState(UUID.randomUUID(), "gb", "kb");
+        SagaState a = new SagaState(UUID.randomUUID(), UUID.randomUUID(), "ga", "ka");
+        SagaState b = new SagaState(UUID.randomUUID(), UUID.randomUUID(), "gb", "kb");
         store.save(a);
         store.save(b);
 
@@ -54,9 +54,23 @@ class InMemorySagaStateStoreTest {
     }
 
     @Test
+    void findByCorrelationId_findsMatchingStateAcrossConcurrentSagas() {
+        UUID correlationA = UUID.randomUUID();
+        UUID correlationB = UUID.randomUUID();
+        SagaState a = new SagaState(UUID.randomUUID(), correlationA, "ga", "ka");
+        SagaState b = new SagaState(UUID.randomUUID(), correlationB, "gb", "kb");
+        store.save(a);
+        store.save(b);
+
+        assertThat(store.findByCorrelationId(correlationA)).contains(a);
+        assertThat(store.findByCorrelationId(correlationB)).contains(b);
+        assertThat(store.findByCorrelationId(UUID.randomUUID())).isEmpty();
+    }
+
+    @Test
     void remove_dropsTheMatchingState() {
         UUID orderId = UUID.randomUUID();
-        store.save(new SagaState(orderId, "g1", "k1"));
+        store.save(new SagaState(orderId, UUID.randomUUID(), "g1", "k1"));
 
         store.remove(orderId);
 
@@ -66,7 +80,7 @@ class InMemorySagaStateStoreTest {
 
     @Test
     void remove_unknownId_isNoOp() {
-        store.save(new SagaState(UUID.randomUUID(), "g1", "k1"));
+        store.save(new SagaState(UUID.randomUUID(), UUID.randomUUID(), "g1", "k1"));
 
         store.remove(UUID.randomUUID());
 

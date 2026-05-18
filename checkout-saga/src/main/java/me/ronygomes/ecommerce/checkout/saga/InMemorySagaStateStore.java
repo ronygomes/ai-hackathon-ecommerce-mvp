@@ -15,6 +15,13 @@ public class InMemorySagaStateStore implements SagaStateStore {
     }
 
     @Override
+    public Optional<SagaState> findByCorrelationId(UUID correlationId) {
+        return store.values().stream()
+                .filter(s -> correlationId.equals(s.correlationId))
+                .findFirst();
+    }
+
+    @Override
     public Collection<SagaState> findAll() {
         return store.values();
     }

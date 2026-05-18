@@ -142,17 +142,20 @@ class ShoppingCartTest {
     }
 
     @Test
-    void clear_emptiesItemsAndEmitsCartCleared() {
+    void clear_emptiesItemsAndEmitsCartClearedWithCorrelationId() {
         ShoppingCart cart = newCart();
         cart.addItem(pid(), new Quantity(2));
         cart.addItem(pid(), new Quantity(3));
         cart.clearUncommittedEvents();
+        UUID correlationId = UUID.randomUUID();
 
-        cart.clear();
+        cart.clear(correlationId);
 
         assertThat(cart.getItems()).isEmpty();
         assertThat(cart.getUncommittedEvents()).singleElement()
-                .isInstanceOfSatisfying(CartCleared.class,
-                        e -> assertThat(e.guestToken()).isEqualTo(cart.getId().value().toString()));
+                .isInstanceOfSatisfying(CartCleared.class, e -> {
+                    assertThat(e.guestToken()).isEqualTo(cart.getId().value().toString());
+                    assertThat(e.correlationId()).isEqualTo(correlationId);
+                });
     }
 }

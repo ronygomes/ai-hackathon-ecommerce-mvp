@@ -6,6 +6,7 @@ import me.ronygomes.ecommerce.core.domain.BaseAggregate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 public class ShoppingCart extends BaseAggregate<CartId> {
     private GuestToken guestToken;
@@ -73,9 +74,9 @@ public class ShoppingCart extends BaseAggregate<CartId> {
         });
     }
 
-    public void clear() {
+    public void clear(UUID correlationId) {
         this.items.clear();
-        addEvent(new CartCleared(this.id.value().toString()));
+        addEvent(new CartCleared(this.id.value().toString(), correlationId));
     }
 
     private Optional<CartItem> findItem(ProductId productId) {

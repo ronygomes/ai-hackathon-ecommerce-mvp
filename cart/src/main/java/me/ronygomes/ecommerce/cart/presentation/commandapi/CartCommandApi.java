@@ -44,7 +44,10 @@ public class CartCommandApi {
 
         config.routes.delete("/cart/{guestToken}", ctx -> {
             String guestToken = ctx.pathParam("guestToken");
-            commandBus.send(new ClearCartCommand(guestToken));
+            // User-initiated clears aren't part of a saga; the fresh correlationId flows
+            // to the event harmlessly and the saga's CartCleared handler will ignore it
+            // (no matching saga state).
+            commandBus.send(new ClearCartCommand(guestToken, UUID.randomUUID()));
             ctx.status(HttpStatus.ACCEPTED);
             ctx.result("{}");
         });

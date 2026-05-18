@@ -15,9 +15,11 @@ class StockBatchValidationFailedTest {
         StockBatchValidationFailed.RejectedItem rejected =
                 new StockBatchValidationFailed.RejectedItem(pid, 5, 1, "Insufficient stock");
 
-        StockBatchValidationFailed event = new StockBatchValidationFailed(List.of(rejected));
+        UUID correlationId = UUID.randomUUID();
+        StockBatchValidationFailed event = new StockBatchValidationFailed(List.of(rejected), correlationId);
 
         assertThat(event.rejected()).singleElement().isSameAs(rejected);
+        assertThat(event.correlationId()).isEqualTo(correlationId);
         assertThat(event.eventId()).isNotBlank();
         assertThat(event.getEventId()).isEqualTo(event.eventId());
         assertThat(event.timestamp()).isPositive();

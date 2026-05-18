@@ -7,6 +7,8 @@ import java.util.UUID;
 public interface SagaStateStore {
     Optional<SagaState> findByOrderId(UUID orderId);
 
+    Optional<SagaState> findByCorrelationId(UUID correlationId);
+
     Collection<SagaState> findAll();
 
     void save(SagaState state);

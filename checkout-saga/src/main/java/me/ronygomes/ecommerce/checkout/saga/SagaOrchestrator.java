@@ -49,15 +49,14 @@ public class SagaOrchestrator {
         switch (messageType) {
             case "CheckoutRequested" -> {
                 CheckoutRequested cr = objectMapper.readValue(message, CheckoutRequested.class);
-                SagaState state = new SagaState(cr.orderId(), cr.guestToken(), cr.idempotencyKey());
+                UUID correlationId = UUID.randomUUID();
+                SagaState state = new SagaState(cr.orderId(), correlationId, cr.guestToken(), cr.idempotencyKey());
                 store.save(state);
-                cartBus.send(new GetCartSnapshotCommand(cr.guestToken()));
+                cartBus.send(new GetCartSnapshotCommand(cr.guestToken(), correlationId));
             }
             case "CartSnapshotProvided" -> {
                 CartSnapshotProvided csp = objectMapper.readValue(message, CartSnapshotProvided.class);
-                SagaState state = store.findAll().stream()
-                        .filter(s -> s.guestToken.equals(csp.guestToken()))
-                        .findFirst().orElse(null);
+                SagaState state = store.findByCorrelationId(csp.correlationId()).orElse(null);
                 if (state != null) {
                     state.cartItems = csp.items();
                     state.totalItemsToDeduct = csp.items().size();
@@ -65,28 +64,24 @@ public class SagaOrchestrator {
                     List<UUID> pids = csp.items().stream()
                             .map(CartSnapshotProvided.CartItemSnapshot::productId)
                             .collect(Collectors.toList());
-                    catalogBus.send(new GetProductSnapshotsCommand(pids));
+                    catalogBus.send(new GetProductSnapshotsCommand(pids, state.correlationId));
                 }
             }
             case "ProductSnapshotsProvided" -> {
                 ProductSnapshotsProvided psp = objectMapper.readValue(message, ProductSnapshotsProvided.class);
-                SagaState state = store.findAll().stream()
-                        .filter(s -> s.cartItems != null && s.productSnapshots == null)
-                        .findFirst().orElse(null);
+                SagaState state = store.findByCorrelationId(psp.correlationId()).orElse(null);
                 if (state != null) {
                     state.productSnapshots = psp.snapshots();
                     store.save(state);
                     List<ValidateStockBatchCommand.StockItemRequest> items = state.cartItems.stream()
                             .map(i -> new ValidateStockBatchCommand.StockItemRequest(i.productId(), i.qty()))
                             .collect(Collectors.toList());
-                    inventoryBus.send(new ValidateStockBatchCommand(items));
+                    inventoryBus.send(new ValidateStockBatchCommand(items, state.correlationId));
                 }
             }
             case "StockBatchValidated" -> {
-                objectMapper.readValue(message, StockBatchValidated.class);
-                SagaState state = store.findAll().stream()
-                        .filter(s -> s.productSnapshots != null && s.cartItems != null && !s.stockValidated)
-                        .findFirst().orElse(null);
+                StockBatchValidated sbv = objectMapper.readValue(message, StockBatchValidated.class);
+                SagaState state = store.findByCorrelationId(sbv.correlationId()).orElse(null);
                 if (state != null) {
                     state.stockValidated = true;
                     store.save(state);
@@ -111,23 +106,19 @@ public class SagaOrchestrator {
                 OrderCreated oc = objectMapper.readValue(message, OrderCreated.class);
                 SagaState state = store.findByOrderId(UUID.fromString(oc.orderId())).orElse(null);
                 if (state != null) {
-                    cartBus.send(new ClearCartCommand(state.guestToken));
+                    cartBus.send(new ClearCartCommand(state.guestToken, state.correlationId));
                 }
             }
             case "CartCleared" -> {
                 CartCleared cc = objectMapper.readValue(message, CartCleared.class);
-                SagaState state = store.findAll().stream()
-                        .filter(s -> s.guestToken.equals(cc.guestToken()))
-                        .findFirst().orElse(null);
+                SagaState state = store.findByCorrelationId(cc.correlationId()).orElse(null);
                 if (state != null) {
                     store.remove(state.orderId);
                 }
             }
             case "StockBatchValidationFailed" -> {
                 StockBatchValidationFailed evt = objectMapper.readValue(message, StockBatchValidationFailed.class);
-                SagaState state = store.findAll().stream()
-                        .filter(s -> s.productSnapshots != null && s.cartItems != null && !s.stockValidated)
-                        .findFirst().orElse(null);
+                SagaState state = store.findByCorrelationId(evt.correlationId()).orElse(null);
                 if (state != null) {
                     System.err.println("Saga ABORTED for order " + state.orderId
                             + ": stock validation failed for " + evt.rejected().size() + " item(s)");

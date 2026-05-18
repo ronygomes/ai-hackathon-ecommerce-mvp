@@ -45,14 +45,17 @@ class ValidateStockBatchHandlerTest {
         when(repository.getById(any()))
                 .thenReturn(CompletableFuture.completedFuture(Optional.of(stocked(50))));
 
+        UUID correlationId = UUID.randomUUID();
         handler.handle(new ValidateStockBatchCommand(List.of(
-                new ValidateStockBatchCommand.StockItemRequest(UUID.randomUUID(), 10)))).get();
+                new ValidateStockBatchCommand.StockItemRequest(UUID.randomUUID(), 10)), correlationId)).get();
 
         ArgumentCaptor<String> aggIdCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<List<DomainEvent>> eventsCaptor = ArgumentCaptor.forClass(List.class);
         verify(outboxStore).append(aggIdCaptor.capture(), eventsCaptor.capture());
         assertThat(aggIdCaptor.getValue()).isNotBlank();
-        assertThat(eventsCaptor.getValue()).singleElement().isInstanceOf(StockBatchValidated.class);
+        assertThat(eventsCaptor.getValue()).singleElement()
+                .isInstanceOfSatisfying(StockBatchValidated.class,
+                        e -> assertThat(e.correlationId()).isEqualTo(correlationId));
     }
 
     @Test
@@ -62,14 +65,16 @@ class ValidateStockBatchHandlerTest {
                 .thenReturn(CompletableFuture.completedFuture(Optional.of(stocked(50))))
                 .thenReturn(CompletableFuture.completedFuture(Optional.of(stocked(1))));
 
+        UUID correlationId = UUID.randomUUID();
         handler.handle(new ValidateStockBatchCommand(List.of(
                 new ValidateStockBatchCommand.StockItemRequest(UUID.randomUUID(), 10),
-                new ValidateStockBatchCommand.StockItemRequest(outOfStockProductId, 10)))).get();
+                new ValidateStockBatchCommand.StockItemRequest(outOfStockProductId, 10)), correlationId)).get();
 
         ArgumentCaptor<List<DomainEvent>> events = ArgumentCaptor.forClass(List.class);
         verify(outboxStore).append(any(), events.capture());
         assertThat(events.getValue()).singleElement()
                 .isInstanceOfSatisfying(StockBatchValidationFailed.class, failed -> {
+                    assertThat(failed.correlationId()).isEqualTo(correlationId);
                     assertThat(failed.rejected()).singleElement().satisfies(rejected -> {
                         assertThat(rejected.productId()).isEqualTo(outOfStockProductId);
                         assertThat(rejected.requestedQty()).isEqualTo(10);
@@ -86,7 +91,7 @@ class ValidateStockBatchHandlerTest {
                 .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
         handler.handle(new ValidateStockBatchCommand(List.of(
-                new ValidateStockBatchCommand.StockItemRequest(missingProductId, 1)))).get();
+                new ValidateStockBatchCommand.StockItemRequest(missingProductId, 1)), UUID.randomUUID())).get();
 
         ArgumentCaptor<List<DomainEvent>> events = ArgumentCaptor.forClass(List.class);
         verify(outboxStore).append(any(), events.capture());
@@ -110,7 +115,7 @@ class ValidateStockBatchHandlerTest {
 
         handler.handle(new ValidateStockBatchCommand(List.of(
                 new ValidateStockBatchCommand.StockItemRequest(a, 5),
-                new ValidateStockBatchCommand.StockItemRequest(b, 5)))).get();
+                new ValidateStockBatchCommand.StockItemRequest(b, 5)), UUID.randomUUID())).get();
 
         ArgumentCaptor<List<DomainEvent>> events = ArgumentCaptor.forClass(List.class);
         verify(outboxStore).append(any(), events.capture());

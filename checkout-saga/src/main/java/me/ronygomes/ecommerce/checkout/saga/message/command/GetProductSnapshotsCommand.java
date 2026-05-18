@@ -5,5 +5,5 @@ import me.ronygomes.ecommerce.core.application.Command;
 import java.util.List;
 import java.util.UUID;
 
-public record GetProductSnapshotsCommand(List<UUID> productIds) implements Command<Void> {
+public record GetProductSnapshotsCommand(List<UUID> productIds, UUID correlationId) implements Command<Void> {
 }

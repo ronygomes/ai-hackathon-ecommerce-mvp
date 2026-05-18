@@ -2,5 +2,7 @@ package me.ronygomes.ecommerce.checkout.saga.message.command;
 
 import me.ronygomes.ecommerce.core.application.Command;
 
-public record ClearCartCommand(String guestToken) implements Command<Void> {
+import java.util.UUID;
+
+public record ClearCartCommand(String guestToken, UUID correlationId) implements Command<Void> {
 }

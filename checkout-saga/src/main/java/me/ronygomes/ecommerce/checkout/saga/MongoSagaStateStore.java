@@ -36,6 +36,12 @@ public class MongoSagaStateStore implements SagaStateStore {
     }
 
     @Override
+    public Optional<SagaState> findByCorrelationId(UUID correlationId) {
+        Document doc = collection.find(Filters.eq("correlationId", correlationId.toString())).first();
+        return Optional.ofNullable(doc).map(this::deserialize);
+    }
+
+    @Override
     public Collection<SagaState> findAll() {
         List<SagaState> states = new ArrayList<>();
         for (Document doc : collection.find()) {

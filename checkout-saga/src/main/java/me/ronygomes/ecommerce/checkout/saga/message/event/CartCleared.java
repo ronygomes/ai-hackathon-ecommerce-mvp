@@ -6,11 +6,12 @@ import java.util.UUID;
 
 public record CartCleared(
         String guestToken,
+        UUID correlationId,
         String eventId,
         long timestamp) implements DomainEvent {
 
-    public CartCleared(String guestToken) {
-        this(guestToken, UUID.randomUUID().toString(), System.currentTimeMillis());
+    public CartCleared(String guestToken, UUID correlationId) {
+        this(guestToken, correlationId, UUID.randomUUID().toString(), System.currentTimeMillis());
     }
 
     @Override
