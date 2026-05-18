@@ -23,7 +23,9 @@ public class ShoppingCart extends BaseAggregate<CartId> {
     }
 
     public static ShoppingCart create(CartId id, GuestToken guestToken) {
-        return new ShoppingCart(id, guestToken);
+        ShoppingCart cart = new ShoppingCart(id, guestToken);
+        cart.addEvent(new CartCreated(id.value(), guestToken.value()));
+        return cart;
     }
 
     public GuestToken getGuestToken() {
@@ -37,25 +39,38 @@ public class ShoppingCart extends BaseAggregate<CartId> {
     public void addItem(ProductId productId, Quantity quantity) {
         Optional<CartItem> existing = findItem(productId);
         if (existing.isPresent()) {
+            int oldQty = existing.get().getQuantity().value();
             existing.get().addQuantity(quantity);
+            int newQty = existing.get().getQuantity().value();
+            addEvent(new CartItemQuantityUpdated(id.value(), productId.value(), oldQty, newQty));
         } else {
             items.add(new CartItem(productId, quantity));
+            addEvent(new CartItemAdded(id.value(), productId.value(), quantity.value()));
         }
     }
 
     public void removeItem(ProductId productId) {
-        items.removeIf(i -> i.getProductId().equals(productId));
+        boolean removed = items.removeIf(i -> i.getProductId().equals(productId));
+        if (removed) {
+            addEvent(new CartItemRemoved(id.value(), productId.value()));
+        }
     }
 
     public void updateQuantity(ProductId productId, Quantity quantity) {
         findItem(productId).ifPresent(i -> {
+            int oldQty = i.getQuantity().value();
             items.remove(i);
             items.add(new CartItem(productId, quantity));
+            addEvent(new CartItemQuantityUpdated(id.value(), productId.value(), oldQty, quantity.value()));
         });
     }
 
     public void changeQuantity(ProductId productId, Quantity quantity) {
-        findItem(productId).ifPresent(i -> i.updateQuantity(quantity));
+        findItem(productId).ifPresent(i -> {
+            int oldQty = i.getQuantity().value();
+            i.updateQuantity(quantity);
+            addEvent(new CartItemQuantityUpdated(id.value(), productId.value(), oldQty, quantity.value()));
+        });
     }
 
     public void clear() {

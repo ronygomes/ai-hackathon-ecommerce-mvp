@@ -14,14 +14,16 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -40,21 +42,22 @@ class ClearCartHandlerTest {
     }
 
     @Test
-    void handle_clearsItemsSavesAndAppendsSagaCartClearedToOutboxKeyedByGuestToken() throws Exception {
+    void handle_clearsItemsSavesAndPushesAggregateCartClearedToOutbox() throws Exception {
         UUID token = UUID.randomUUID();
         ShoppingCart cart = ShoppingCart.create(new CartId(token), new GuestToken(token.toString()));
         cart.addItem(new ProductId(UUID.randomUUID()), new Quantity(2));
+        cart.clearUncommittedEvents(); // discard setup events
         when(repository.getById(any())).thenReturn(CompletableFuture.completedFuture(Optional.of(cart)));
+        AtomicReference<List<DomainEvent>> appended = snapshotAppendedEvents();
+        ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
 
         handler.handle(new ClearCartCommand(token.toString())).get();
 
         assertThat(cart.getItems()).isEmpty();
         verify(repository).save(cart);
-        // CLAUDE.md §5 #5: handler constructs a fresh CartCleared (bypasses cart.getUncommittedEvents).
-        // Outbox aggregate key is the guestToken (not the cartId) — preserves the bypass behavior.
-        ArgumentCaptor<List<DomainEvent>> events = ArgumentCaptor.forClass(List.class);
-        verify(outboxStore).append(eq(token.toString()), events.capture());
-        assertThat(events.getValue()).singleElement()
+        verify(outboxStore).append(keyCaptor.capture(), any());
+        assertThat(keyCaptor.getValue()).isEqualTo(cart.getId().toString());
+        assertThat(appended.get()).singleElement()
                 .isInstanceOfSatisfying(CartCleared.class,
                         e -> assertThat(e.guestToken()).isEqualTo(token.toString()));
     }
@@ -67,5 +70,14 @@ class ClearCartHandlerTest {
 
         verify(repository, never()).save(any());
         verify(outboxStore, never()).append(any(), any());
+    }
+
+    private AtomicReference<List<DomainEvent>> snapshotAppendedEvents() {
+        AtomicReference<List<DomainEvent>> ref = new AtomicReference<>(List.of());
+        doAnswer(inv -> {
+            ref.set(new ArrayList<>(inv.getArgument(1)));
+            return null;
+        }).when(outboxStore).append(any(), any());
+        return ref;
     }
 }
