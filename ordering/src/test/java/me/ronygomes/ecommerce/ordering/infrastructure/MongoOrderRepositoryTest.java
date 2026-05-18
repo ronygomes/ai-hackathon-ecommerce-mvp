@@ -5,6 +5,7 @@ import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.ReplaceOptions;
+import me.ronygomes.ecommerce.core.infrastructure.AppConfig;
 import me.ronygomes.ecommerce.ordering.domain.CustomerInfo;
 import me.ronygomes.ecommerce.ordering.domain.GuestToken;
 import me.ronygomes.ecommerce.ordering.domain.IdempotencyKey;
@@ -41,11 +42,12 @@ class MongoOrderRepositoryTest {
     void setUp() {
         MongoClient client = mock(MongoClient.class);
         MongoDatabase database = mock(MongoDatabase.class);
-        when(client.getDatabase("aihackathon")).thenReturn(database);
+        AppConfig config = new AppConfig("mongodb://test", "test-db", "localhost");
+        when(client.getDatabase("test-db")).thenReturn(database);
         when(database.getCollection("orders")).thenReturn(collection);
         when(collection.find(any(Bson.class))).thenReturn(iterable);
 
-        repository = new MongoOrderRepository(client);
+        repository = new MongoOrderRepository(client, config);
     }
 
     @Test

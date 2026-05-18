@@ -6,6 +6,8 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.ReplaceOptions;
 import me.ronygomes.ecommerce.cart.domain.CartId;
+import me.ronygomes.ecommerce.core.infrastructure.AppConfig;
+
 import me.ronygomes.ecommerce.cart.domain.GuestToken;
 import me.ronygomes.ecommerce.cart.domain.ProductId;
 import me.ronygomes.ecommerce.cart.domain.Quantity;
@@ -37,11 +39,12 @@ class MongoCartRepositoryTest {
     void setUp() {
         MongoClient client = mock(MongoClient.class);
         MongoDatabase database = mock(MongoDatabase.class);
-        when(client.getDatabase("aihackathon")).thenReturn(database);
+        AppConfig config = new AppConfig("mongodb://test", "test-db", "localhost");
+        when(client.getDatabase("test-db")).thenReturn(database);
         when(database.getCollection("carts")).thenReturn(collection);
         when(collection.find(any(Bson.class))).thenReturn(iterable);
 
-        repository = new MongoCartRepository(client);
+        repository = new MongoCartRepository(client, config);
     }
 
     @Test

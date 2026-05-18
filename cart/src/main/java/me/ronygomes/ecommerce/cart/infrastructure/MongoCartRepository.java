@@ -6,6 +6,7 @@ import com.mongodb.client.model.Filters;
 import me.ronygomes.ecommerce.cart.domain.CartId;
 import me.ronygomes.ecommerce.cart.domain.GuestToken;
 import me.ronygomes.ecommerce.cart.domain.ShoppingCart;
+import me.ronygomes.ecommerce.core.infrastructure.AppConfig;
 import me.ronygomes.ecommerce.core.infrastructure.BaseMongoRepository;
 import org.bson.Document;
 
@@ -14,8 +15,8 @@ import java.util.concurrent.CompletableFuture;
 
 public class MongoCartRepository extends BaseMongoRepository<ShoppingCart, CartId> implements CartRepository {
     @Inject
-    public MongoCartRepository(MongoClient mongoClient) {
-        super(mongoClient, "aihackathon", "carts", ShoppingCart.class);
+    public MongoCartRepository(MongoClient mongoClient, AppConfig config) {
+        super(mongoClient, config.mongoDbName(), "carts", ShoppingCart.class);
     }
 
     @Override

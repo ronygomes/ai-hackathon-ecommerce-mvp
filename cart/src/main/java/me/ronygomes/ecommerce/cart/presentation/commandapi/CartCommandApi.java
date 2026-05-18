@@ -9,6 +9,7 @@ import me.ronygomes.ecommerce.cart.application.AddCartItemCommand;
 import me.ronygomes.ecommerce.cart.application.RemoveCartItemCommand;
 import me.ronygomes.ecommerce.cart.application.UpdateCartItemQtyCommand;
 import me.ronygomes.ecommerce.core.application.CommandBus;
+import me.ronygomes.ecommerce.core.infrastructure.AppConfig;
 import me.ronygomes.ecommerce.core.infrastructure.RabbitMQCommandBus;
 
 import java.util.UUID;
@@ -54,10 +55,11 @@ public class CartCommandApi {
     }
 
     static void main() {
-        CommandBus commandBus = new RabbitMQCommandBus("cart_commands", "localhost");
+        AppConfig appConfig = AppConfig.fromEnv();
+        CommandBus commandBus = new RabbitMQCommandBus("cart_commands", appConfig.rabbitHost());
         ObjectMapper objectMapper = new ObjectMapper();
 
-        Javalin.create(config -> register(config, commandBus, objectMapper)).start(8084);
+        Javalin.create(cfg -> register(cfg, commandBus, objectMapper)).start(8084);
     }
 
     public record AddItemToCartRequest(String productId, int qty) {

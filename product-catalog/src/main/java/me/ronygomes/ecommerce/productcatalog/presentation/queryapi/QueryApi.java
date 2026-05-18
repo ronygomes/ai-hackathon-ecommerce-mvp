@@ -7,6 +7,7 @@ import com.mongodb.client.MongoDatabase;
 import io.javalin.Javalin;
 import io.javalin.config.JavalinConfig;
 import io.javalin.http.HttpStatus;
+import me.ronygomes.ecommerce.core.infrastructure.AppConfig;
 import me.ronygomes.ecommerce.core.infrastructure.MongoClientProvider;
 import org.bson.Document;
 
@@ -58,15 +59,16 @@ public class QueryApi {
     }
 
     static void main() {
-        MongoClient mongoClient = new MongoClientProvider().get();
-        MongoDatabase database = mongoClient.getDatabase("aihackathon");
+        AppConfig config = AppConfig.fromEnv();
+        MongoClient mongoClient = new MongoClientProvider(config).get();
+        MongoDatabase database = mongoClient.getDatabase(config.mongoDbName());
 
         MongoCollection<Document> listViewCollection = database.getCollection("product_list_view");
         MongoCollection<Document> detailViewCollection = database.getCollection("product_detail_view");
 
         ObjectMapper objectMapper = new ObjectMapper();
 
-        Javalin.create(config -> register(config, listViewCollection, detailViewCollection, objectMapper))
+        Javalin.create(cfg -> register(cfg, listViewCollection, detailViewCollection, objectMapper))
                 .start(8081);
     }
 }

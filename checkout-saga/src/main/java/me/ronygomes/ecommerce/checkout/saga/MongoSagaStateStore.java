@@ -14,14 +14,13 @@ import java.util.Optional;
 import java.util.UUID;
 
 public class MongoSagaStateStore implements SagaStateStore {
-    private static final String DB_NAME = "aihackathon";
     private static final String COLLECTION_NAME = "saga_state";
 
     private final MongoCollection<Document> collection;
     private final ObjectMapper objectMapper;
 
-    public MongoSagaStateStore(MongoClient mongoClient) {
-        this(mongoClient.getDatabase(DB_NAME).getCollection(COLLECTION_NAME), new ObjectMapper());
+    public MongoSagaStateStore(MongoClient mongoClient, String dbName) {
+        this(mongoClient.getDatabase(dbName).getCollection(COLLECTION_NAME), new ObjectMapper());
     }
 
     MongoSagaStateStore(MongoCollection<Document> collection, ObjectMapper objectMapper) {

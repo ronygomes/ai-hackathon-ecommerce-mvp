@@ -6,6 +6,7 @@ import io.javalin.config.JavalinConfig;
 import io.javalin.http.HttpStatus;
 import jakarta.inject.Inject;
 import me.ronygomes.ecommerce.core.application.CommandBus;
+import me.ronygomes.ecommerce.core.infrastructure.AppConfig;
 import me.ronygomes.ecommerce.core.infrastructure.Validator;
 import me.ronygomes.ecommerce.productcatalog.application.CreateProductCommand;
 import me.ronygomes.ecommerce.productcatalog.infrastructure.CommandApiModule;
@@ -54,7 +55,7 @@ public class CommandApi {
     }
 
     static void main() {
-        CommandApi commandApi = Guice.createInjector(new CommandApiModule())
+        CommandApi commandApi = Guice.createInjector(new CommandApiModule(AppConfig.fromEnv()))
                 .getInstance(CommandApi.class);
 
         Javalin.create(commandApi::register).start(PORT);

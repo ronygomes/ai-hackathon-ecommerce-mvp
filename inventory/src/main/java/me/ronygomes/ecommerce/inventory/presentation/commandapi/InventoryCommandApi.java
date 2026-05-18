@@ -6,6 +6,7 @@ import io.javalin.config.JavalinConfig;
 import io.javalin.http.HttpStatus;
 import me.ronygomes.ecommerce.checkout.saga.message.command.DeductStockForOrderCommand;
 import me.ronygomes.ecommerce.core.application.CommandBus;
+import me.ronygomes.ecommerce.core.infrastructure.AppConfig;
 import me.ronygomes.ecommerce.core.infrastructure.RabbitMQCommandBus;
 import me.ronygomes.ecommerce.inventory.application.SetStockCommand;
 
@@ -34,9 +35,10 @@ public class InventoryCommandApi {
     }
 
     static void main() {
-        CommandBus commandBus = new RabbitMQCommandBus("inventory_commands", "localhost");
+        AppConfig config = AppConfig.fromEnv();
+        CommandBus commandBus = new RabbitMQCommandBus("inventory_commands", config.rabbitHost());
         ObjectMapper objectMapper = new ObjectMapper();
 
-        Javalin.create(config -> register(config, commandBus, objectMapper)).start(8082);
+        Javalin.create(cfg -> register(cfg, commandBus, objectMapper)).start(8082);
     }
 }

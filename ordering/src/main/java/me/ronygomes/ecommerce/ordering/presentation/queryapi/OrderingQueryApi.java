@@ -7,6 +7,7 @@ import com.mongodb.client.model.Filters;
 import io.javalin.Javalin;
 import io.javalin.config.JavalinConfig;
 import io.javalin.http.HttpStatus;
+import me.ronygomes.ecommerce.core.infrastructure.AppConfig;
 import me.ronygomes.ecommerce.core.infrastructure.MongoClientProvider;
 import org.bson.Document;
 
@@ -40,11 +41,12 @@ public class OrderingQueryApi {
     }
 
     static void main() {
-        MongoClient mongoClient = new MongoClientProvider().get();
-        MongoCollection<Document> orderProjections = mongoClient.getDatabase("aihackathon")
+        AppConfig config = AppConfig.fromEnv();
+        MongoClient mongoClient = new MongoClientProvider(config).get();
+        MongoCollection<Document> orderProjections = mongoClient.getDatabase(config.mongoDbName())
                 .getCollection("order_projections");
         ObjectMapper objectMapper = new ObjectMapper();
 
-        Javalin.create(config -> register(config, orderProjections, objectMapper)).start(8087);
+        Javalin.create(cfg -> register(cfg, orderProjections, objectMapper)).start(8087);
     }
 }

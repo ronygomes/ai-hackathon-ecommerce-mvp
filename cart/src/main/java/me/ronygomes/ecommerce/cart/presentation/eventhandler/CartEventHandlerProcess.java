@@ -5,6 +5,7 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.rabbitmq.client.*;
 import me.ronygomes.ecommerce.cart.presentation.eventhandler.handler.*;
+import me.ronygomes.ecommerce.core.infrastructure.AppConfig;
 import me.ronygomes.ecommerce.core.infrastructure.MongoClientProvider;
 import me.ronygomes.ecommerce.core.messaging.MessageDispatcherImpl;
 import me.ronygomes.ecommerce.core.messaging.MessageMetadata;
@@ -15,12 +16,13 @@ import java.util.Map;
 
 public class CartEventHandlerProcess {
     static void main() throws Exception {
-        MongoClient mongoClient = new MongoClientProvider().get();
-        MongoDatabase database = mongoClient.getDatabase("aihackathon");
+        AppConfig config = AppConfig.fromEnv();
+        MongoClient mongoClient = new MongoClientProvider(config).get();
+        MongoDatabase database = mongoClient.getDatabase(config.mongoDbName());
         MongoCollection<Document> cartViewCollection = database.getCollection("cart_view");
 
         ConnectionFactory factory = new ConnectionFactory();
-        factory.setHost("localhost");
+        factory.setHost(config.rabbitHost());
         Connection connection = factory.newConnection();
         Channel channel = connection.createChannel();
 

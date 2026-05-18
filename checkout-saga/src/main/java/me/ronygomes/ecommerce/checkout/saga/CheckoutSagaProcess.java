@@ -8,6 +8,7 @@ import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.DeliverCallback;
 import com.mongodb.client.MongoClient;
 import me.ronygomes.ecommerce.core.application.CommandBus;
+import me.ronygomes.ecommerce.core.infrastructure.AppConfig;
 import me.ronygomes.ecommerce.core.infrastructure.MongoClientProvider;
 import me.ronygomes.ecommerce.core.infrastructure.RabbitMQCommandBus;
 import me.ronygomes.ecommerce.core.infrastructure.idempotency.MongoProcessedCommandStore;
@@ -18,21 +19,22 @@ import java.util.Map;
 public class CheckoutSagaProcess {
 
     static void main() throws Exception {
+        AppConfig config = AppConfig.fromEnv();
         ConnectionFactory factory = new ConnectionFactory();
-        factory.setHost("localhost");
+        factory.setHost(config.rabbitHost());
         Connection connection = factory.newConnection();
         Channel channel = connection.createChannel();
 
-        CommandBus orderBus = new RabbitMQCommandBus("ordering_commands", "localhost");
-        CommandBus cartBus = new RabbitMQCommandBus("cart_commands", "localhost");
-        CommandBus catalogBus = new RabbitMQCommandBus("product_catalog_commands", "localhost");
-        CommandBus inventoryBus = new RabbitMQCommandBus("inventory_commands", "localhost");
+        CommandBus orderBus = new RabbitMQCommandBus("ordering_commands", config.rabbitHost());
+        CommandBus cartBus = new RabbitMQCommandBus("cart_commands", config.rabbitHost());
+        CommandBus catalogBus = new RabbitMQCommandBus("product_catalog_commands", config.rabbitHost());
+        CommandBus inventoryBus = new RabbitMQCommandBus("inventory_commands", config.rabbitHost());
 
         ObjectMapper objectMapper = new ObjectMapper();
-        MongoClient mongoClient = new MongoClientProvider().get();
-        SagaStateStore store = new MongoSagaStateStore(mongoClient);
+        MongoClient mongoClient = new MongoClientProvider(config).get();
+        SagaStateStore store = new MongoSagaStateStore(mongoClient, config.mongoDbName());
         ProcessedCommandStore processedEventStore = new MongoProcessedCommandStore(
-                mongoClient, "aihackathon", "saga_processed_events");
+                mongoClient, config.mongoDbName(), "saga_processed_events");
         SagaOrchestrator orchestrator = new SagaOrchestrator(
                 orderBus, cartBus, catalogBus, inventoryBus, objectMapper, store, processedEventStore);
 

@@ -3,6 +3,7 @@ package me.ronygomes.ecommerce.ordering.presentation.eventhandler;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.rabbitmq.client.*;
+import me.ronygomes.ecommerce.core.infrastructure.AppConfig;
 import me.ronygomes.ecommerce.core.infrastructure.MongoClientProvider;
 import me.ronygomes.ecommerce.core.messaging.MessageDispatcherImpl;
 import me.ronygomes.ecommerce.core.messaging.MessageMetadata;
@@ -14,12 +15,13 @@ import java.util.Map;
 
 public class OrderingEventHandlerProcess {
     static void main() throws Exception {
-        MongoClient mongoClient = new MongoClientProvider().get();
-        MongoCollection<Document> collection = mongoClient.getDatabase("aihackathon")
+        AppConfig config = AppConfig.fromEnv();
+        MongoClient mongoClient = new MongoClientProvider(config).get();
+        MongoCollection<Document> collection = mongoClient.getDatabase(config.mongoDbName())
                 .getCollection("order_projections");
 
         ConnectionFactory factory = new ConnectionFactory();
-        factory.setHost("localhost");
+        factory.setHost(config.rabbitHost());
         Connection connection = factory.newConnection();
         Channel channel = connection.createChannel();
 

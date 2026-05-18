@@ -7,6 +7,7 @@ import com.mongodb.client.MongoDatabase;
 import io.javalin.Javalin;
 import io.javalin.config.JavalinConfig;
 import io.javalin.http.HttpStatus;
+import me.ronygomes.ecommerce.core.infrastructure.AppConfig;
 import me.ronygomes.ecommerce.core.infrastructure.MongoClientProvider;
 import org.bson.Document;
 
@@ -40,11 +41,12 @@ public class InventoryQueryApi {
     }
 
     static void main() {
-        MongoClient mongoClient = new MongoClientProvider().get();
-        MongoDatabase database = mongoClient.getDatabase("aihackathon");
+        AppConfig config = AppConfig.fromEnv();
+        MongoClient mongoClient = new MongoClientProvider(config).get();
+        MongoDatabase database = mongoClient.getDatabase(config.mongoDbName());
         MongoCollection<Document> stockAvailability = database.getCollection("stock_availability_view");
         ObjectMapper objectMapper = new ObjectMapper();
 
-        Javalin.create(config -> register(config, stockAvailability, objectMapper)).start(8083);
+        Javalin.create(cfg -> register(cfg, stockAvailability, objectMapper)).start(8083);
     }
 }

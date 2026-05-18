@@ -15,6 +15,7 @@ import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.DeliverCallback;
 import me.ronygomes.ecommerce.checkout.saga.message.command.DeductStockForOrderCommand;
 import me.ronygomes.ecommerce.checkout.saga.message.command.ValidateStockBatchCommand;
+import me.ronygomes.ecommerce.core.infrastructure.AppConfig;
 import me.ronygomes.ecommerce.core.infrastructure.MongoClientProvider;
 import me.ronygomes.ecommerce.core.infrastructure.Repository;
 import me.ronygomes.ecommerce.core.infrastructure.idempotency.MongoProcessedCommandStore;
@@ -44,17 +45,17 @@ import java.util.concurrent.TimeUnit;
 
 public class InventoryCommandHandlerProcess {
 
-    private static final String DB_NAME = "aihackathon";
     private static final String OUTBOX_COLLECTION = "inventory_outbox";
     private static final String PROCESSED_COMMANDS_COLLECTION = "inventory_processed_commands";
     private static final int OUTBOX_BATCH_SIZE = 100;
     private static final long OUTBOX_TICK_INTERVAL_MS = 500;
 
     static void main() throws Exception {
-        Injector injector = Guice.createInjector(new InventoryModule());
+        AppConfig config = AppConfig.fromEnv();
+        Injector injector = Guice.createInjector(new InventoryModule(config));
 
         ConnectionFactory factory = new ConnectionFactory();
-        factory.setHost("localhost");
+        factory.setHost(config.rabbitHost());
         Connection connection = factory.newConnection();
         Channel channel = connection.createChannel();
 
@@ -127,8 +128,15 @@ public class InventoryCommandHandlerProcess {
     }
 
     static class InventoryModule extends AbstractModule {
+        private final AppConfig config;
+
+        InventoryModule(AppConfig config) {
+            this.config = config;
+        }
+
         @Override
         protected void configure() {
+            bind(AppConfig.class).toInstance(config);
             bind(MongoClient.class).toProvider(MongoClientProvider.class);
             bind(com.google.inject.Key.get(new TypeLiteral<Repository<InventoryItem, ProductId>>() {
             })).to(MongoInventoryRepository.class);
@@ -137,14 +145,14 @@ public class InventoryCommandHandlerProcess {
 
         @Provides
         @Singleton
-        OutboxStore outboxStore(MongoClient mongoClient) {
-            return new MongoOutboxStore(mongoClient, DB_NAME, OUTBOX_COLLECTION);
+        OutboxStore outboxStore(MongoClient mongoClient, AppConfig config) {
+            return new MongoOutboxStore(mongoClient, config.mongoDbName(), OUTBOX_COLLECTION);
         }
 
         @Provides
         @Singleton
-        ProcessedCommandStore processedCommandStore(MongoClient mongoClient) {
-            return new MongoProcessedCommandStore(mongoClient, DB_NAME, PROCESSED_COMMANDS_COLLECTION);
+        ProcessedCommandStore processedCommandStore(MongoClient mongoClient, AppConfig config) {
+            return new MongoProcessedCommandStore(mongoClient, config.mongoDbName(), PROCESSED_COMMANDS_COLLECTION);
         }
     }
 }

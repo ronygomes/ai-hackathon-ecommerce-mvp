@@ -5,6 +5,7 @@ import io.javalin.Javalin;
 import io.javalin.config.JavalinConfig;
 import io.javalin.http.HttpStatus;
 import me.ronygomes.ecommerce.core.application.CommandBus;
+import me.ronygomes.ecommerce.core.infrastructure.AppConfig;
 import me.ronygomes.ecommerce.core.infrastructure.RabbitMQCommandBus;
 import me.ronygomes.ecommerce.ordering.application.PlaceOrderCommand;
 import me.ronygomes.ecommerce.ordering.domain.CustomerInfo;
@@ -52,9 +53,10 @@ public class OrderingCommandApi {
     }
 
     static void main() {
-        CommandBus commandBus = new RabbitMQCommandBus("ordering_commands", "localhost");
+        AppConfig appConfig = AppConfig.fromEnv();
+        CommandBus commandBus = new RabbitMQCommandBus("ordering_commands", appConfig.rabbitHost());
         ObjectMapper objectMapper = new ObjectMapper();
 
-        Javalin.create(config -> register(config, commandBus, objectMapper)).start(8086);
+        Javalin.create(cfg -> register(cfg, commandBus, objectMapper)).start(8086);
     }
 }

@@ -1,5 +1,6 @@
 package me.ronygomes.ecommerce.core.infrastructure;
 
+import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.google.inject.Singleton;
 import com.mongodb.client.MongoClient;
@@ -9,8 +10,9 @@ import com.mongodb.client.MongoClients;
 public class MongoClientProvider implements Provider<MongoClient> {
     private final MongoClient mongoClient;
 
-    public MongoClientProvider() {
-        this.mongoClient = MongoClients.create("mongodb://admin:admin@localhost:27017");
+    @Inject
+    public MongoClientProvider(AppConfig config) {
+        this.mongoClient = MongoClients.create(config.mongoUri());
     }
 
     @Override

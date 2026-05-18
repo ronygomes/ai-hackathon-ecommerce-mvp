@@ -3,6 +3,7 @@ package me.ronygomes.ecommerce.ordering.infrastructure;
 import com.google.inject.Inject;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
+import me.ronygomes.ecommerce.core.infrastructure.AppConfig;
 import me.ronygomes.ecommerce.core.infrastructure.BaseMongoRepository;
 import me.ronygomes.ecommerce.ordering.domain.IdempotencyKey;
 import me.ronygomes.ecommerce.ordering.domain.Order;
@@ -14,8 +15,8 @@ import java.util.concurrent.CompletableFuture;
 
 public class MongoOrderRepository extends BaseMongoRepository<Order, OrderId> implements OrderRepository {
     @Inject
-    public MongoOrderRepository(MongoClient mongoClient) {
-        super(mongoClient, "aihackathon", "orders", Order.class);
+    public MongoOrderRepository(MongoClient mongoClient, AppConfig config) {
+        super(mongoClient, config.mongoDbName(), "orders", Order.class);
     }
 
     @Override

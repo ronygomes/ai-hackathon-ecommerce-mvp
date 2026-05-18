@@ -14,6 +14,7 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.DeliverCallback;
 import me.ronygomes.ecommerce.checkout.saga.message.command.MarkCheckoutCompletedCommand;
+import me.ronygomes.ecommerce.core.infrastructure.AppConfig;
 import me.ronygomes.ecommerce.core.infrastructure.MongoClientProvider;
 import me.ronygomes.ecommerce.core.infrastructure.Repository;
 import me.ronygomes.ecommerce.core.infrastructure.idempotency.MongoProcessedCommandStore;
@@ -41,17 +42,17 @@ import java.util.concurrent.TimeUnit;
 
 public class OrderingCommandHandlerProcess {
 
-    private static final String DB_NAME = "aihackathon";
     private static final String OUTBOX_COLLECTION = "ordering_outbox";
     private static final String PROCESSED_COMMANDS_COLLECTION = "ordering_processed_commands";
     private static final int OUTBOX_BATCH_SIZE = 100;
     private static final long OUTBOX_TICK_INTERVAL_MS = 500;
 
     static void main() throws Exception {
-        Injector injector = Guice.createInjector(new OrderingModule());
+        AppConfig config = AppConfig.fromEnv();
+        Injector injector = Guice.createInjector(new OrderingModule(config));
 
         ConnectionFactory factory = new ConnectionFactory();
-        factory.setHost("localhost");
+        factory.setHost(config.rabbitHost());
         Connection connection = factory.newConnection();
         Channel channel = connection.createChannel();
 
@@ -118,8 +119,15 @@ public class OrderingCommandHandlerProcess {
     }
 
     static class OrderingModule extends AbstractModule {
+        private final AppConfig config;
+
+        OrderingModule(AppConfig config) {
+            this.config = config;
+        }
+
         @Override
         protected void configure() {
+            bind(AppConfig.class).toInstance(config);
             bind(MongoClient.class).toProvider(MongoClientProvider.class);
             bind(OrderRepository.class).to(MongoOrderRepository.class);
             bind(com.google.inject.Key.get(new TypeLiteral<Repository<Order, OrderId>>() {
@@ -129,14 +137,14 @@ public class OrderingCommandHandlerProcess {
 
         @Provides
         @Singleton
-        OutboxStore outboxStore(MongoClient mongoClient) {
-            return new MongoOutboxStore(mongoClient, DB_NAME, OUTBOX_COLLECTION);
+        OutboxStore outboxStore(MongoClient mongoClient, AppConfig config) {
+            return new MongoOutboxStore(mongoClient, config.mongoDbName(), OUTBOX_COLLECTION);
         }
 
         @Provides
         @Singleton
-        ProcessedCommandStore processedCommandStore(MongoClient mongoClient) {
-            return new MongoProcessedCommandStore(mongoClient, DB_NAME, PROCESSED_COMMANDS_COLLECTION);
+        ProcessedCommandStore processedCommandStore(MongoClient mongoClient, AppConfig config) {
+            return new MongoProcessedCommandStore(mongoClient, config.mongoDbName(), PROCESSED_COMMANDS_COLLECTION);
         }
     }
 }
