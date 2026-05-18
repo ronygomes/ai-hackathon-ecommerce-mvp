@@ -39,7 +39,8 @@ public class RabbitMQCommandBus implements CommandBus {
     }
 
     @Override
-    public <TResponse> CompletableFuture<TResponse> send(Command<TResponse> command) {
+    public CompletableFuture<UUID> send(Command<?> command) {
+        UUID commandId = UUID.randomUUID();
         return CompletableFuture.runAsync(() -> {
             try (Connection connection = factory.newConnection();
                     Channel channel = connection.createChannel()) {
@@ -48,7 +49,7 @@ public class RabbitMQCommandBus implements CommandBus {
 
                 Map<String, Object> headers = new HashMap<>();
                 headers.put("X-Message-Type", command.getClass().getSimpleName());
-                headers.put("X-Command-Id", UUID.randomUUID().toString());
+                headers.put("X-Command-Id", commandId.toString());
                 AMQP.BasicProperties props = new AMQP.BasicProperties.Builder()
                         .headers(headers)
                         .build();
@@ -57,6 +58,6 @@ public class RabbitMQCommandBus implements CommandBus {
             } catch (Exception e) {
                 throw new RuntimeException("Failed to send command to RabbitMQ", e);
             }
-        }).thenApply(v -> null); // Command API returns 202, doesn't wait for internal result in this simple MVP
+        }).thenApply(v -> commandId);
     }
 }

@@ -15,7 +15,7 @@ public class InventoryCommandApi {
 
         config.routes.post("/inventory/stock", ctx -> {
             SetStockCommand command = objectMapper.readValue(ctx.body(), SetStockCommand.class);
-            commandBus.send(command).get();
+            commandBus.send(command);
             ctx.status(HttpStatus.ACCEPTED);
             ctx.result("{\"status\": \"Accepted\"}");
         });

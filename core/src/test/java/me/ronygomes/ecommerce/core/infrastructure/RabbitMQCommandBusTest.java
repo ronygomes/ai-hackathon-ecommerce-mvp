@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.io.IOException;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -77,6 +78,18 @@ class RabbitMQCommandBusTest {
         assertThatThrownBy(() -> bus.send(new SampleCommand("a", 1)).get())
                 .isInstanceOf(ExecutionException.class)
                 .hasMessageContaining("Failed to send command to RabbitMQ");
+    }
+
+    @Test
+    void send_returnsTheSameCommandIdItStampsAsXCommandIdHeader() throws Exception {
+        UUID returned = bus.send(new SampleCommand("a", 1)).get();
+
+        ArgumentCaptor<AMQP.BasicProperties> propsCaptor = ArgumentCaptor.forClass(AMQP.BasicProperties.class);
+        verify(channel).basicPublish(eq(""), eq("test_queue"), propsCaptor.capture(), any(byte[].class));
+
+        Object headerId = propsCaptor.getValue().getHeaders().get("X-Command-Id");
+        assertThat(returned).isNotNull();
+        assertThat(headerId).asString().isEqualTo(returned.toString());
     }
 
     @Test
