@@ -6,7 +6,6 @@ import me.ronygomes.ecommerce.cart.infrastructure.CartRepository;
 import me.ronygomes.ecommerce.core.application.CommandHandler;
 import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxStore;
 
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 public class AddCartItemHandler implements CommandHandler<AddCartItemCommand, Void> {
@@ -21,10 +20,10 @@ public class AddCartItemHandler implements CommandHandler<AddCartItemCommand, Vo
 
     @Override
     public CompletableFuture<Void> handle(AddCartItemCommand command) {
-        return repository.getById(new CartId(UUID.fromString(command.guestToken())))
+        return repository.getById(CartId.fromGuestToken(command.guestToken()))
                 .thenCompose(opt -> {
                     ShoppingCart cart = opt.orElseGet(() -> ShoppingCart.create(
-                            new CartId(UUID.fromString(command.guestToken())),
+                            CartId.fromGuestToken(command.guestToken()),
                             new GuestToken(command.guestToken())));
 
                     cart.addItem(ProductId.fromString(command.productId().toString()), new Quantity(command.qty()));

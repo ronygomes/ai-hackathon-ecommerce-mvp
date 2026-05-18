@@ -75,11 +75,11 @@ class MarkCheckoutCompletedHandlerTest {
     }
 
     @Test
-    void handle_orderNotFound_throwsSynchronouslyInsideThenCompose() {
+    void handle_orderNotFound_returnsFailedFuture() {
         when(repository.getById(any())).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
         assertThatThrownBy(() -> handler.handle(new MarkCheckoutCompletedCommand(UUID.randomUUID())).get())
-                .hasRootCauseInstanceOf(RuntimeException.class)
+                .hasCauseInstanceOf(RuntimeException.class)
                 .hasMessageContaining("Order not found");
     }
 }

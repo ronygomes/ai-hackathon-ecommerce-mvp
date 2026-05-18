@@ -36,6 +36,9 @@ public class Order extends BaseAggregate<OrderId> {
 
     public static Order place(OrderId id, GuestToken guestToken, CustomerInfo customerInfo, ShippingAddress address,
             List<OrderLineItem> items, IdempotencyKey idempotencyKey) {
+        if (items == null || items.isEmpty()) {
+            throw new IllegalArgumentException("Cannot place an order with no items");
+        }
         OrderNumber orderNumber = OrderNumber.generate();
         OrderTotals totals = OrderTotals.calculate(items);
         Order order = new Order(id, orderNumber, guestToken, customerInfo, address, items, totals,

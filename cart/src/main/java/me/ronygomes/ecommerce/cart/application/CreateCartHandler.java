@@ -7,7 +7,6 @@ import me.ronygomes.ecommerce.cart.domain.ShoppingCart;
 import me.ronygomes.ecommerce.cart.infrastructure.CartRepository;
 import me.ronygomes.ecommerce.core.application.CommandHandler;
 
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 public class CreateCartHandler implements CommandHandler<CreateCartCommand, Void> {
@@ -21,7 +20,7 @@ public class CreateCartHandler implements CommandHandler<CreateCartCommand, Void
     @Override
     public CompletableFuture<Void> handle(CreateCartCommand command) {
         GuestToken guestToken = new GuestToken(command.guestToken());
-        CartId cartId = new CartId(UUID.fromString(command.guestToken()));
+        CartId cartId = CartId.fromGuestToken(command.guestToken());
         ShoppingCart cart = ShoppingCart.create(cartId, guestToken);
         return repository.save(cart);
     }

@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class OrderTest {
 
@@ -57,17 +58,15 @@ class OrderTest {
     }
 
     @Test
-    void place_acceptsEmptyItemsList_currentBehavior() {
-        // Spec (prompt-7) says order should only be created if cart is non-empty.
-        // Current impl performs no such check. Pinned so a future fix is intentional.
-        Order order = Order.place(
+    void place_emptyItemsList_throws() {
+        assertThatThrownBy(() -> Order.place(
                 OrderId.generate(),
                 new GuestToken("g1"),
                 new CustomerInfo("Jane", "+1", "j@e"),
                 new ShippingAddress("L1", "City", "x", "US"),
                 List.of(),
-                new IdempotencyKey(UUID.randomUUID()));
-
-        assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING_PAYMENT);
+                new IdempotencyKey(UUID.randomUUID())))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("no items");
     }
 }

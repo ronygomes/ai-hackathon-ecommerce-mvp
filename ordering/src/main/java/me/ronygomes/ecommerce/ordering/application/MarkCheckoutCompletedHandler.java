@@ -25,7 +25,8 @@ public class MarkCheckoutCompletedHandler implements CommandHandler<MarkCheckout
         return repository.getById(new OrderId(command.orderId()))
                 .thenCompose(opt -> {
                     if (opt.isEmpty())
-                        throw new RuntimeException("Order not found: " + command.orderId());
+                        return CompletableFuture.<Void>failedFuture(
+                                new RuntimeException("Order not found: " + command.orderId()));
                     Order order = opt.get();
                     order.finalizeCreated();
                     return repository.save(order)

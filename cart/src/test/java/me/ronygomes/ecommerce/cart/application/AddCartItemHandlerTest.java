@@ -66,6 +66,7 @@ class AddCartItemHandlerTest {
     void handle_missingCart_createsNewOneAndPushesCartCreatedThenCartItemAdded() throws Exception {
         UUID token = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
+        UUID expectedCartId = CartId.fromGuestToken(token.toString()).value();
         when(repository.getById(any())).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
         AtomicReference<List<DomainEvent>> appended = snapshotAppendedEvents();
 
@@ -73,15 +74,15 @@ class AddCartItemHandlerTest {
 
         ArgumentCaptor<ShoppingCart> saved = ArgumentCaptor.forClass(ShoppingCart.class);
         verify(repository).save(saved.capture());
-        assertThat(saved.getValue().getId().value()).isEqualTo(token);
+        assertThat(saved.getValue().getId().value()).isEqualTo(expectedCartId);
         assertThat(saved.getValue().getItems()).hasSize(1);
         assertThat(appended.get()).hasSize(2);
         assertThat(appended.get().get(0)).isInstanceOfSatisfying(CartCreated.class, e -> {
-            assertThat(e.cartId()).isEqualTo(token);
+            assertThat(e.cartId()).isEqualTo(expectedCartId);
             assertThat(e.guestToken()).isEqualTo(token.toString());
         });
         assertThat(appended.get().get(1)).isInstanceOfSatisfying(CartItemAdded.class, e -> {
-            assertThat(e.cartId()).isEqualTo(token);
+            assertThat(e.cartId()).isEqualTo(expectedCartId);
             assertThat(e.productId()).isEqualTo(productId);
             assertThat(e.qty()).isEqualTo(2);
         });

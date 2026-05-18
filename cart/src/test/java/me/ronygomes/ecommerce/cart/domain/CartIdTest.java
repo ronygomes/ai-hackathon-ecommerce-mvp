@@ -28,4 +28,28 @@ class CartIdTest {
     void generate_producesUniqueIds() {
         assertThat(CartId.generate()).isNotEqualTo(CartId.generate());
     }
+
+    @Test
+    void fromGuestToken_isDeterministic() {
+        CartId first = CartId.fromGuestToken("guest-abc");
+        CartId second = CartId.fromGuestToken("guest-abc");
+
+        assertThat(first).isEqualTo(second);
+    }
+
+    @Test
+    void fromGuestToken_acceptsNonUuidStrings() {
+        // Pre-fix, handlers parsed guestToken via UUID.fromString and exploded on
+        // non-UUID input. fromGuestToken derives a UUID via name-hashing so any
+        // non-null string is valid.
+        CartId id = CartId.fromGuestToken("not-a-uuid");
+
+        assertThat(id.value()).isNotNull();
+    }
+
+    @Test
+    void fromGuestToken_nullThrows() {
+        assertThatThrownBy(() -> CartId.fromGuestToken(null))
+                .isInstanceOf(NullPointerException.class);
+    }
 }

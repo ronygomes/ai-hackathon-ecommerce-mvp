@@ -6,6 +6,7 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
 import io.javalin.Javalin;
 import io.javalin.config.JavalinConfig;
+import io.javalin.http.HttpStatus;
 import me.ronygomes.ecommerce.core.infrastructure.MongoClientProvider;
 import org.bson.Document;
 
@@ -29,7 +30,12 @@ public class OrderingQueryApi {
             String orderId = ctx.pathParam("orderId");
             Document order = orderProjections.find(Filters.eq("_id", orderId)).first();
             ctx.contentType("application/json");
-            ctx.result(order != null ? objectMapper.writeValueAsString(order) : "{}");
+            if (order == null) {
+                ctx.status(HttpStatus.NOT_FOUND);
+                ctx.result("{\"error\":\"Order not found\"}");
+            } else {
+                ctx.result(objectMapper.writeValueAsString(order));
+            }
         });
     }
 

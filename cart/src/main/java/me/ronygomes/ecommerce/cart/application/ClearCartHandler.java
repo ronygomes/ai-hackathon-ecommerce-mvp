@@ -8,7 +8,6 @@ import me.ronygomes.ecommerce.cart.infrastructure.CartRepository;
 import me.ronygomes.ecommerce.core.application.CommandHandler;
 import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxStore;
 
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 public class ClearCartHandler implements CommandHandler<ClearCartCommand, Void> {
@@ -23,7 +22,7 @@ public class ClearCartHandler implements CommandHandler<ClearCartCommand, Void> 
 
     @Override
     public CompletableFuture<Void> handle(ClearCartCommand command) {
-        return repository.getById(new CartId(UUID.fromString(command.guestToken())))
+        return repository.getById(CartId.fromGuestToken(command.guestToken()))
                 .thenCompose(cartOpt -> {
                     if (cartOpt.isPresent()) {
                         ShoppingCart cart = cartOpt.get();

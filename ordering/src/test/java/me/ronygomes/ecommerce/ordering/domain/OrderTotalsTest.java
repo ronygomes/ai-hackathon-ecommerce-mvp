@@ -20,16 +20,14 @@ class OrderTotalsTest {
     }
 
     @Test
-    void calculateFromItems_usesFlat10ShippingFee_currentlyDeviatesFromSpec() {
-        // OUTLINE.md specifies shippingFee = 0 in MVP. Current impl hardcodes $10.
-        // Pinning today's behavior; will need updating when fix lands.
+    void calculateFromItems_usesZeroShippingFeePerMVPSpec() {
         OrderTotals totals = OrderTotals.calculate(List.of(
                 new OrderLineItem(UUID.randomUUID(), "SKU-A", "A", 10.0, 2),
                 new OrderLineItem(UUID.randomUUID(), "SKU-B", "B", 5.0, 1)));
 
         assertThat(totals.subtotal()).isEqualTo(25.0);
-        assertThat(totals.shippingFee()).isEqualTo(10.0);
-        assertThat(totals.total()).isEqualTo(35.0);
+        assertThat(totals.shippingFee()).isEqualTo(0.0);
+        assertThat(totals.total()).isEqualTo(25.0);
     }
 
     @Test

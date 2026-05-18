@@ -15,7 +15,7 @@ public record OrderTotals(double subtotal, double shippingFee, double total) {
 
     public static OrderTotals calculate(List<OrderLineItem> items) {
         double subtotal = items.stream().mapToDouble(i -> i.getUnitPriceSnapshot() * i.getQuantity()).sum();
-        double shipping = 10.0; // Flat fee for MVP
+        double shipping = 0.0; // MVP: free shipping per OUTLINE
         return new OrderTotals(subtotal, shipping, subtotal + shipping);
     }
 }

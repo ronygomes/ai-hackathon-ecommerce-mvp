@@ -11,7 +11,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -29,20 +28,24 @@ class CreateCartHandlerTest {
     }
 
     @Test
-    void handle_savesCartKeyedByGuestTokenAsCartId() throws Exception {
+    void handle_savesCartKeyedByGuestTokenDerivedCartId() throws Exception {
         UUID token = UUID.randomUUID();
 
         handler.handle(new CreateCartCommand(token.toString())).get();
 
         ArgumentCaptor<ShoppingCart> saved = ArgumentCaptor.forClass(ShoppingCart.class);
         verify(repository).save(saved.capture());
-        assertThat(saved.getValue().getId()).isEqualTo(new CartId(token));
+        assertThat(saved.getValue().getId()).isEqualTo(CartId.fromGuestToken(token.toString()));
         assertThat(saved.getValue().getGuestToken().value()).isEqualTo(token.toString());
     }
 
     @Test
-    void handle_nonUuidGuestToken_failsBecauseImplementationParsesItAsUuid() {
-        assertThatThrownBy(() -> handler.handle(new CreateCartCommand("not-a-uuid")))
-                .isInstanceOf(IllegalArgumentException.class);
+    void handle_nonUuidGuestToken_succeedsWithDerivedCartId() throws Exception {
+        handler.handle(new CreateCartCommand("not-a-uuid")).get();
+
+        ArgumentCaptor<ShoppingCart> saved = ArgumentCaptor.forClass(ShoppingCart.class);
+        verify(repository).save(saved.capture());
+        assertThat(saved.getValue().getId()).isEqualTo(CartId.fromGuestToken("not-a-uuid"));
+        assertThat(saved.getValue().getGuestToken().value()).isEqualTo("not-a-uuid");
     }
 }

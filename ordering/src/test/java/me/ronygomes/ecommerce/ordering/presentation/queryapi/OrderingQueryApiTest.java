@@ -64,14 +64,13 @@ class OrderingQueryApiTest {
     }
 
     @Test
-    void getOrderById_whenNotFound_returns200WithEmptyJsonObject_currentBehavior() {
-        // Note: implementation returns "{}" with 200 instead of 404. Pinned.
+    void getOrderById_whenNotFound_returns404() {
         when(iterable.first()).thenReturn(null);
 
         JavalinTest.test(setupApp(), (server, client) -> {
             var response = client.get("/orders/id/missing");
-            assertThat(response.code()).isEqualTo(HttpStatus.OK.getCode());
-            assertThat(response.body().string()).isEqualTo("{}");
+            assertThat(response.code()).isEqualTo(HttpStatus.NOT_FOUND.getCode());
+            assertThat(response.body().string()).contains("Order not found");
         });
     }
 }

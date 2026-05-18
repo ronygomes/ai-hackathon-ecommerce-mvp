@@ -11,7 +11,6 @@ import me.ronygomes.ecommerce.core.application.CommandHandler;
 import me.ronygomes.ecommerce.core.messaging.MessageBus;
 
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -27,10 +26,10 @@ public class GetCartSnapshotHandler implements CommandHandler<GetCartSnapshotCom
 
     @Override
     public CompletableFuture<Void> handle(GetCartSnapshotCommand command) {
-        return repository.getById(new CartId(UUID.fromString(command.guestToken())))
+        return repository.getById(CartId.fromGuestToken(command.guestToken()))
                 .thenCompose(cartOpt -> {
                     ShoppingCart cart = cartOpt.orElseGet(() -> ShoppingCart.create(
-                            new CartId(UUID.fromString(command.guestToken())),
+                            CartId.fromGuestToken(command.guestToken()),
                             new GuestToken(command.guestToken())));
 
                     List<CartSnapshotProvided.CartItemSnapshot> snapshots = cart
