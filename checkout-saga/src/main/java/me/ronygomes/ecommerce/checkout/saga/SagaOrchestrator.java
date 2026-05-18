@@ -11,8 +11,12 @@ import me.ronygomes.ecommerce.checkout.saga.handler.StockBatchValidationFailedHa
 import me.ronygomes.ecommerce.checkout.saga.handler.StockDeductedForOrderHandler;
 import me.ronygomes.ecommerce.checkout.saga.handler.StockDeductionFailedHandler;
 import me.ronygomes.ecommerce.core.application.CommandBus;
+import me.ronygomes.ecommerce.core.domain.DomainEvent;
+import me.ronygomes.ecommerce.core.infrastructure.idempotency.ProcessedCommandStore;
+import me.ronygomes.ecommerce.core.messaging.IdempotentMessageHandler;
 import me.ronygomes.ecommerce.core.messaging.MessageDispatcher;
 import me.ronygomes.ecommerce.core.messaging.MessageDispatcherImpl;
+import me.ronygomes.ecommerce.core.messaging.MessageHandler;
 import me.ronygomes.ecommerce.core.messaging.MessageMetadata;
 
 import java.util.concurrent.CompletionException;
@@ -33,18 +37,44 @@ public class SagaOrchestrator {
 
     public SagaOrchestrator(CommandBus orderBus, CommandBus cartBus, CommandBus catalogBus, CommandBus inventoryBus,
                             ObjectMapper objectMapper, SagaStateStore store) {
+        this(orderBus, cartBus, catalogBus, inventoryBus, objectMapper, store, null);
+    }
+
+    /**
+     * Overload that wires inbound-event idempotency. When {@code processedEventStore} is
+     * non-null, each step handler is wrapped in an {@link IdempotentMessageHandler} so
+     * duplicate AMQP redeliveries of the same event id won't fire duplicate downstream
+     * commands (or mutate saga state twice).
+     */
+    public SagaOrchestrator(CommandBus orderBus, CommandBus cartBus, CommandBus catalogBus, CommandBus inventoryBus,
+                            ObjectMapper objectMapper, SagaStateStore store,
+                            ProcessedCommandStore processedEventStore) {
         this.store = store;
         MessageDispatcherImpl impl = new MessageDispatcherImpl(objectMapper);
-        impl.registerHandler("CheckoutRequested", new CheckoutRequestedHandler(cartBus, store));
-        impl.registerHandler("CartSnapshotProvided", new CartSnapshotProvidedHandler(catalogBus, store));
-        impl.registerHandler("ProductSnapshotsProvided", new ProductSnapshotsProvidedHandler(inventoryBus, store));
-        impl.registerHandler("StockBatchValidated", new StockBatchValidatedHandler(inventoryBus, store));
-        impl.registerHandler("StockDeductedForOrder", new StockDeductedForOrderHandler(orderBus, store));
-        impl.registerHandler("OrderCreated", new OrderCreatedHandler(cartBus, store));
-        impl.registerHandler("CartCleared", new CartClearedHandler(store));
-        impl.registerHandler("StockBatchValidationFailed", new StockBatchValidationFailedHandler(store));
-        impl.registerHandler("StockDeductionFailed", new StockDeductionFailedHandler(store));
+        impl.registerHandler("CheckoutRequested",
+                wrap(new CheckoutRequestedHandler(cartBus, store), processedEventStore));
+        impl.registerHandler("CartSnapshotProvided",
+                wrap(new CartSnapshotProvidedHandler(catalogBus, store), processedEventStore));
+        impl.registerHandler("ProductSnapshotsProvided",
+                wrap(new ProductSnapshotsProvidedHandler(inventoryBus, store), processedEventStore));
+        impl.registerHandler("StockBatchValidated",
+                wrap(new StockBatchValidatedHandler(inventoryBus, store), processedEventStore));
+        impl.registerHandler("StockDeductedForOrder",
+                wrap(new StockDeductedForOrderHandler(orderBus, store), processedEventStore));
+        impl.registerHandler("OrderCreated",
+                wrap(new OrderCreatedHandler(cartBus, store), processedEventStore));
+        impl.registerHandler("CartCleared",
+                wrap(new CartClearedHandler(store), processedEventStore));
+        impl.registerHandler("StockBatchValidationFailed",
+                wrap(new StockBatchValidationFailedHandler(store), processedEventStore));
+        impl.registerHandler("StockDeductionFailed",
+                wrap(new StockDeductionFailedHandler(store), processedEventStore));
         this.dispatcher = impl;
+    }
+
+    private static <T extends DomainEvent> MessageHandler<T> wrap(MessageHandler<T> handler,
+                                                                  ProcessedCommandStore processedEventStore) {
+        return processedEventStore == null ? handler : new IdempotentMessageHandler<>(handler, processedEventStore);
     }
 
     public SagaStateStore store() {

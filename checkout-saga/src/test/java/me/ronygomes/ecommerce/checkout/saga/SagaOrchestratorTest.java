@@ -18,11 +18,14 @@ import me.ronygomes.ecommerce.checkout.saga.message.event.StockDeductedForOrder;
 import me.ronygomes.ecommerce.checkout.saga.message.event.StockDeductionFailed;
 import me.ronygomes.ecommerce.core.application.Command;
 import me.ronygomes.ecommerce.core.application.CommandBus;
+import me.ronygomes.ecommerce.core.infrastructure.idempotency.ProcessedCommandStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -378,5 +381,65 @@ class SagaOrchestratorTest {
 
         verify(spy, times(5)).save(any());
         verify(spy, never()).remove(any());
+    }
+
+    /**
+     * In-memory ProcessedCommandStore stand-in so tests can verify duplicate-event
+     * suppression without spinning up Mongo.
+     */
+    private static final class InMemoryProcessedEventStore implements ProcessedCommandStore {
+        private final Set<String> seen = new HashSet<>();
+
+        @Override
+        public boolean wasProcessed(String id) {
+            return seen.contains(id);
+        }
+
+        @Override
+        public void markProcessed(String id, String metadata) {
+            seen.add(id);
+        }
+    }
+
+    @Test
+    void withIdempotencyStore_duplicateCheckoutRequested_isHandledOnceAndDoesNotResendCommand()
+            throws Exception {
+        InMemoryProcessedEventStore eventStore = new InMemoryProcessedEventStore();
+        SagaOrchestrator idempotent = new SagaOrchestrator(
+                orderBus, cartBus, catalogBus, inventoryBus, objectMapper, store, eventStore);
+
+        UUID orderId = UUID.randomUUID();
+        String body = json(checkoutRequested(orderId, "g1", "k1"));
+
+        idempotent.handle("CheckoutRequested", body);
+        idempotent.handle("CheckoutRequested", body); // redelivery — same eventId
+
+        verify(cartBus, times(1)).send(any(GetCartSnapshotCommand.class));
+        assertThat(store.findByOrderId(orderId)).isPresent();
+    }
+
+    @Test
+    void withIdempotencyStore_duplicateStockDeductedForOrder_doesNotDoubleCountDeductions()
+            throws Exception {
+        InMemoryProcessedEventStore eventStore = new InMemoryProcessedEventStore();
+        SagaOrchestrator idempotent = new SagaOrchestrator(
+                orderBus, cartBus, catalogBus, inventoryBus, objectMapper, store, eventStore);
+
+        UUID orderId = UUID.randomUUID();
+        UUID productA = UUID.randomUUID();
+        UUID productB = UUID.randomUUID();
+        idempotent.handle("CheckoutRequested", json(checkoutRequested(orderId, "g1", "k")));
+        UUID correlationId = correlationOf(orderId);
+        idempotent.handle("CartSnapshotProvided", json(new CartSnapshotProvided("g1", List.of(
+                new CartSnapshotProvided.CartItemSnapshot(productA, 1),
+                new CartSnapshotProvided.CartItemSnapshot(productB, 1)), correlationId)));
+
+        String deductBody = json(new StockDeductedForOrder(orderId, productA, 0));
+        idempotent.handle("StockDeductedForOrder", deductBody);
+        idempotent.handle("StockDeductedForOrder", deductBody); // redelivery
+
+        SagaState state = store.findByOrderId(orderId).orElseThrow();
+        assertThat(state.deductedItemsCount).isEqualTo(1); // not 2
+        verifyNoInteractions(orderBus); // still 1 short of completion
     }
 }

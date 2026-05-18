@@ -6,9 +6,12 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.DeliverCallback;
+import com.mongodb.client.MongoClient;
 import me.ronygomes.ecommerce.core.application.CommandBus;
 import me.ronygomes.ecommerce.core.infrastructure.MongoClientProvider;
 import me.ronygomes.ecommerce.core.infrastructure.RabbitMQCommandBus;
+import me.ronygomes.ecommerce.core.infrastructure.idempotency.MongoProcessedCommandStore;
+import me.ronygomes.ecommerce.core.infrastructure.idempotency.ProcessedCommandStore;
 
 import java.util.Map;
 
@@ -26,8 +29,12 @@ public class CheckoutSagaProcess {
         CommandBus inventoryBus = new RabbitMQCommandBus("inventory_commands", "localhost");
 
         ObjectMapper objectMapper = new ObjectMapper();
-        SagaStateStore store = new MongoSagaStateStore(new MongoClientProvider().get());
-        SagaOrchestrator orchestrator = new SagaOrchestrator(orderBus, cartBus, catalogBus, inventoryBus, objectMapper, store);
+        MongoClient mongoClient = new MongoClientProvider().get();
+        SagaStateStore store = new MongoSagaStateStore(mongoClient);
+        ProcessedCommandStore processedEventStore = new MongoProcessedCommandStore(
+                mongoClient, "aihackathon", "saga_processed_events");
+        SagaOrchestrator orchestrator = new SagaOrchestrator(
+                orderBus, cartBus, catalogBus, inventoryBus, objectMapper, store, processedEventStore);
 
         String queueName = "checkout_saga_coordinator";
         channel.queueDeclare(queueName, true, false, false, null);
