@@ -5,3 +5,9 @@ plugins {
 dependencies {
     implementation project(':core')
 }
+
+tasks.register('runSaga', JavaExec) {
+    dependsOn 'classes'
+    mainClass = 'me.ronygomes.ecommerce.checkout.saga.CheckoutSagaProcess'
+    classpath = sourceSets.main.runtimeClasspath
+}

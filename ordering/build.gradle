@@ -6,3 +6,27 @@ dependencies {
     implementation project(':core')
     implementation project(':checkout-saga')
 }
+
+tasks.register('runCommandApi', JavaExec) {
+    dependsOn 'classes'
+    mainClass = 'me.ronygomes.ecommerce.ordering.presentation.commandapi.OrderingCommandApi'
+    classpath = sourceSets.main.runtimeClasspath
+}
+
+tasks.register('runCommandHandler', JavaExec) {
+    dependsOn 'classes'
+    mainClass = 'me.ronygomes.ecommerce.ordering.presentation.commandhandler.OrderingCommandHandlerProcess'
+    classpath = sourceSets.main.runtimeClasspath
+}
+
+tasks.register('runEventHandler', JavaExec) {
+    dependsOn 'classes'
+    mainClass = 'me.ronygomes.ecommerce.ordering.presentation.eventhandler.OrderingEventHandlerProcess'
+    classpath = sourceSets.main.runtimeClasspath
+}
+
+tasks.register('runQueryApi', JavaExec) {
+    dependsOn 'classes'
+    mainClass = 'me.ronygomes.ecommerce.ordering.presentation.queryapi.OrderingQueryApi'
+    classpath = sourceSets.main.runtimeClasspath
+}

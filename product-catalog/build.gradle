@@ -12,3 +12,21 @@ tasks.register('runCommandApi', JavaExec) {
     mainClass = 'me.ronygomes.ecommerce.productcatalog.presentation.commandapi.CommandApi'
     classpath = sourceSets.main.runtimeClasspath
 }
+
+tasks.register('runCommandHandler', JavaExec) {
+    dependsOn 'classes'
+    mainClass = 'me.ronygomes.ecommerce.productcatalog.presentation.commandhandler.CommandHandlerProcess'
+    classpath = sourceSets.main.runtimeClasspath
+}
+
+tasks.register('runEventHandler', JavaExec) {
+    dependsOn 'classes'
+    mainClass = 'me.ronygomes.ecommerce.productcatalog.presentation.eventhandler.EventHandlerProcess'
+    classpath = sourceSets.main.runtimeClasspath
+}
+
+tasks.register('runQueryApi', JavaExec) {
+    dependsOn 'classes'
+    mainClass = 'me.ronygomes.ecommerce.productcatalog.presentation.queryapi.QueryApi'
+    classpath = sourceSets.main.runtimeClasspath
+}
