@@ -4,20 +4,25 @@ import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.model.ReplaceOptions;
+import me.ronygomes.ecommerce.cart.domain.CartId;
 import me.ronygomes.ecommerce.cart.domain.GuestToken;
+import me.ronygomes.ecommerce.cart.domain.ProductId;
+import me.ronygomes.ecommerce.cart.domain.Quantity;
 import me.ronygomes.ecommerce.cart.domain.ShoppingCart;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class MongoCartRepositoryTest {
@@ -49,15 +54,27 @@ class MongoCartRepositoryTest {
     }
 
     @Test
-    void getByGuestToken_whenDocFound_currentlyFailsToDeserialize() {
-        // Pins a real bug: ShoppingCart has only a private (CartId, GuestToken) constructor
-        // and no @JsonCreator, so Jackson cannot reconstruct it from BSON. Logged in CLAUDE.md.
-        Document doc = new Document("_id", "x")
-                .append("guestToken", new Document("value", "g1"));
-        when(iterable.first()).thenReturn(doc);
+    void saveThenLoad_roundTripsAggregateState() throws Exception {
+        CartId cartId = CartId.generate();
+        ShoppingCart original = ShoppingCart.create(cartId, new GuestToken("g1"));
+        ProductId productId = new ProductId(UUID.randomUUID());
+        original.addItem(productId, new Quantity(3));
 
-        assertThatThrownBy(() -> repository.getByGuestToken(new GuestToken("g1")).get())
-                .isInstanceOf(ExecutionException.class)
-                .hasMessageContaining("Failed to deserialize cart");
+        repository.save(original).get();
+
+        ArgumentCaptor<Document> docCaptor = ArgumentCaptor.forClass(Document.class);
+        verify(collection).replaceOne(any(Bson.class), docCaptor.capture(), any(ReplaceOptions.class));
+        when(iterable.first()).thenReturn(docCaptor.getValue());
+
+        Optional<ShoppingCart> reloaded = repository.getByGuestToken(new GuestToken("g1")).get();
+
+        assertThat(reloaded).hasValueSatisfying(cart -> {
+            assertThat(cart.getId()).isEqualTo(cartId);
+            assertThat(cart.getGuestToken().value()).isEqualTo("g1");
+            assertThat(cart.getItems()).singleElement().satisfies(item -> {
+                assertThat(item.getProductId()).isEqualTo(productId);
+                assertThat(item.getQuantity().value()).isEqualTo(3);
+            });
+        });
     }
 }

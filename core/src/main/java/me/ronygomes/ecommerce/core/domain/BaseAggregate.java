@@ -1,5 +1,7 @@
 package me.ronygomes.ecommerce.core.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -7,6 +9,7 @@ import java.util.List;
 public abstract class BaseAggregate<TId> implements AggregateRoot<TId> {
     protected TId id;
     protected Long version = 0L;
+    @JsonIgnore
     private final List<DomainEvent> uncommittedEvents = new ArrayList<>();
 
     @Override

@@ -4,21 +4,29 @@ import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.model.ReplaceOptions;
+import me.ronygomes.ecommerce.ordering.domain.CustomerInfo;
+import me.ronygomes.ecommerce.ordering.domain.GuestToken;
 import me.ronygomes.ecommerce.ordering.domain.IdempotencyKey;
 import me.ronygomes.ecommerce.ordering.domain.Order;
+import me.ronygomes.ecommerce.ordering.domain.OrderId;
+import me.ronygomes.ecommerce.ordering.domain.OrderLineItem;
+import me.ronygomes.ecommerce.ordering.domain.OrderStatus;
+import me.ronygomes.ecommerce.ordering.domain.ShippingAddress;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class MongoOrderRepositoryTest {
@@ -50,15 +58,30 @@ class MongoOrderRepositoryTest {
     }
 
     @Test
-    void getByIdempotencyKey_whenDocFound_currentlyFailsToDeserialize() {
-        // Pins a real bug: Order has only a private all-args constructor and no @JsonCreator,
-        // so Jackson cannot reconstruct it from BSON. Logged in CLAUDE.md.
-        Document doc = new Document("_id", "x")
-                .append("idempotencyKey", new Document("value", UUID.randomUUID().toString()));
-        when(iterable.first()).thenReturn(doc);
+    void saveThenLoad_roundTripsAggregateState() throws Exception {
+        OrderId orderId = OrderId.generate();
+        IdempotencyKey idempotencyKey = new IdempotencyKey(UUID.randomUUID());
+        UUID productId = UUID.randomUUID();
+        Order original = Order.place(
+                orderId,
+                new GuestToken("g1"),
+                new CustomerInfo("Alice", "+1-555", "alice@example.com"),
+                new ShippingAddress("1 Main", "Anytown", "12345", "USA"),
+                List.of(new OrderLineItem(productId, "SKU-1", "Widget", 9.99, 2)),
+                idempotencyKey);
 
-        assertThatThrownBy(() -> repository.getByIdempotencyKey(new IdempotencyKey(UUID.randomUUID())).get())
-                .isInstanceOf(ExecutionException.class)
-                .hasMessageContaining("Failed to deserialize order");
+        repository.save(original).get();
+
+        ArgumentCaptor<Document> docCaptor = ArgumentCaptor.forClass(Document.class);
+        verify(collection).replaceOne(any(Bson.class), docCaptor.capture(), any(ReplaceOptions.class));
+        when(iterable.first()).thenReturn(docCaptor.getValue());
+
+        Optional<Order> reloaded = repository.getByIdempotencyKey(idempotencyKey).get();
+
+        assertThat(reloaded).hasValueSatisfying(order -> {
+            assertThat(order.getId()).isEqualTo(orderId);
+            assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING_PAYMENT);
+            assertThat(order.getOrderNumber().value()).isEqualTo(original.getOrderNumber().value());
+        });
     }
 }

@@ -4,12 +4,16 @@ import java.util.Objects;
 import java.util.UUID;
 
 public class OrderLineItem {
-    private final UUID productId;
-    private final String skuSnapshot;
-    private final String nameSnapshot;
-    private final double unitPriceSnapshot;
-    private final int quantity;
-    private final double lineTotal;
+    private UUID productId;
+    private String skuSnapshot;
+    private String nameSnapshot;
+    private double unitPriceSnapshot;
+    private int quantity;
+    private double lineTotal;
+
+    // Required for Jackson — populates fields via reflection (see BaseMongoRepository.aggregateMapper).
+    private OrderLineItem() {
+    }
 
     public OrderLineItem(UUID productId, String skuSnapshot, String nameSnapshot, double unitPriceSnapshot,
             int quantity) {

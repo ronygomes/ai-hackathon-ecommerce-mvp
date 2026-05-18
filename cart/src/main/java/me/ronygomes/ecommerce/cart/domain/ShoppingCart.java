@@ -8,8 +8,13 @@ import java.util.List;
 import java.util.Optional;
 
 public class ShoppingCart extends BaseAggregate<CartId> {
-    private final GuestToken guestToken;
-    private final List<CartItem> items;
+    private GuestToken guestToken;
+    private List<CartItem> items;
+
+    // Required for Jackson — populates fields via reflection (see BaseMongoRepository.aggregateMapper).
+    private ShoppingCart() {
+        this.items = new ArrayList<>();
+    }
 
     private ShoppingCart(CartId id, GuestToken guestToken) {
         this.id = id;

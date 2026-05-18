@@ -76,15 +76,15 @@ class BaseMongoRepositoryTest {
 
     @Test
     void getById_whenDocumentExists_returnsDeserializedAggregate() throws Exception {
-        // NOTE: Mongo's `_id` is stripped before deserialization (see BaseMongoRepository.getById).
-        // BaseAggregate.id has no public setter, so id stays null on load — known bug, tracked in
-        // ai_spec/CLAUDE.md. Test asserts the parts that actually round-trip today.
-        Document doc = new Document("_id", "id-1").append("name", "hello");
+        Document doc = new Document("_id", "id-1").append("id", "id-1").append("name", "hello");
         when(findIterable.first()).thenReturn(doc);
 
         Optional<TestAggregate> result = repository.getById("id-1").get();
 
-        assertThat(result).hasValueSatisfying(agg -> assertThat(agg.getName()).isEqualTo("hello"));
+        assertThat(result).hasValueSatisfying(agg -> {
+            assertThat(agg.getId()).isEqualTo("id-1");
+            assertThat(agg.getName()).isEqualTo("hello");
+        });
     }
 
     @Test
@@ -122,15 +122,13 @@ class BaseMongoRepositoryTest {
     }
 
     @Test
-    void save_whenSerializationFails_completesExceptionally() {
-        TestAggregate broken = new TestAggregate("id-1", null) {
-            @Override
-            public String getName() {
-                throw new RuntimeException("serialization boom");
-            }
-        };
+    void save_whenWriteFails_completesExceptionally() {
+        when(collection.replaceOne(any(Bson.class), any(Document.class), any(ReplaceOptions.class)))
+                .thenThrow(new RuntimeException("mongo down"));
 
-        assertThatThrownBy(() -> repository.save(broken).get())
+        TestAggregate aggregate = new TestAggregate("id-1", "hello");
+
+        assertThatThrownBy(() -> repository.save(aggregate).get())
                 .isInstanceOf(ExecutionException.class)
                 .hasMessageContaining("Failed to save aggregate");
     }

@@ -3,8 +3,12 @@ package me.ronygomes.ecommerce.cart.domain;
 import java.util.Objects;
 
 public class CartItem {
-    private final ProductId productId;
+    private ProductId productId;
     private Quantity quantity;
+
+    // Required for Jackson — populates fields via reflection (see BaseMongoRepository.aggregateMapper).
+    private CartItem() {
+    }
 
     public CartItem(ProductId productId, Quantity quantity) {
         this.productId = Objects.requireNonNull(productId);

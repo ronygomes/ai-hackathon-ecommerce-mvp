@@ -7,14 +7,18 @@ import me.ronygomes.ecommerce.core.domain.BaseAggregate;
 import java.util.List;
 
 public class Order extends BaseAggregate<OrderId> {
-    private final OrderNumber orderNumber;
-    private final GuestToken guestToken;
-    private final CustomerInfo customerInfo;
-    private final ShippingAddress shippingAddress;
-    private final List<OrderLineItem> items;
-    private final OrderTotals totals;
-    private final IdempotencyKey idempotencyKey;
+    private OrderNumber orderNumber;
+    private GuestToken guestToken;
+    private CustomerInfo customerInfo;
+    private ShippingAddress shippingAddress;
+    private List<OrderLineItem> items;
+    private OrderTotals totals;
+    private IdempotencyKey idempotencyKey;
     private OrderStatus status;
+
+    // Required for Jackson — populates fields via reflection (see BaseMongoRepository.aggregateMapper).
+    private Order() {
+    }
 
     private Order(OrderId id, OrderNumber orderNumber, GuestToken guestToken, CustomerInfo customerInfo,
             ShippingAddress shippingAddress, List<OrderLineItem> items, OrderTotals totals,
