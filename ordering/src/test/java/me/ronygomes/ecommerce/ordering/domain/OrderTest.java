@@ -1,6 +1,7 @@
 package me.ronygomes.ecommerce.ordering.domain;
 
 import me.ronygomes.ecommerce.checkout.saga.message.event.CheckoutRequested;
+import me.ronygomes.ecommerce.checkout.saga.message.event.OrderCancelled;
 import me.ronygomes.ecommerce.checkout.saga.message.event.OrderCreated;
 import org.junit.jupiter.api.Test;
 
@@ -68,5 +69,42 @@ class OrderTest {
                 new IdempotencyKey(UUID.randomUUID())))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("no items");
+    }
+
+    @Test
+    void cancel_fromPendingPayment_transitionsToCancelledAndEmitsOrderCancelled() {
+        Order order = placedOrder();
+        order.clearUncommittedEvents();
+
+        order.cancel("stock validation failed");
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(order.getUncommittedEvents()).singleElement()
+                .isInstanceOfSatisfying(OrderCancelled.class, e -> {
+                    assertThat(e.orderId()).isEqualTo(order.getId().value().toString());
+                    assertThat(e.reason()).isEqualTo("stock validation failed");
+                });
+    }
+
+    @Test
+    void cancel_whenAlreadyCancelled_isIdempotentNoOp() {
+        Order order = placedOrder();
+        order.cancel("first reason");
+        order.clearUncommittedEvents();
+
+        order.cancel("second reason");
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(order.getUncommittedEvents()).isEmpty();
+    }
+
+    @Test
+    void cancel_afterConfirmed_throwsIllegalStateException() {
+        Order order = placedOrder();
+        order.finalizeCreated();
+
+        assertThatThrownBy(() -> order.cancel("late cancel"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Cannot cancel a confirmed order");
     }
 }

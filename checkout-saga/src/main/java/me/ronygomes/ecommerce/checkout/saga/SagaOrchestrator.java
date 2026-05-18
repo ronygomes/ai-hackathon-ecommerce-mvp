@@ -66,9 +66,9 @@ public class SagaOrchestrator {
         impl.registerHandler("CartCleared",
                 wrap(new CartClearedHandler(store), processedEventStore));
         impl.registerHandler("StockBatchValidationFailed",
-                wrap(new StockBatchValidationFailedHandler(store), processedEventStore));
+                wrap(new StockBatchValidationFailedHandler(orderBus, store), processedEventStore));
         impl.registerHandler("StockDeductionFailed",
-                wrap(new StockDeductionFailedHandler(store), processedEventStore));
+                wrap(new StockDeductionFailedHandler(orderBus, store), processedEventStore));
         this.dispatcher = impl;
     }
 

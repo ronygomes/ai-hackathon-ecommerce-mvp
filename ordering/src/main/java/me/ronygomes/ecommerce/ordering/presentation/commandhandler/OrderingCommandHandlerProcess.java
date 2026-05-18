@@ -13,6 +13,7 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.DeliverCallback;
+import me.ronygomes.ecommerce.checkout.saga.message.command.CancelOrderCommand;
 import me.ronygomes.ecommerce.checkout.saga.message.command.MarkCheckoutCompletedCommand;
 import me.ronygomes.ecommerce.core.infrastructure.AppConfig;
 import me.ronygomes.ecommerce.core.infrastructure.MongoClientProvider;
@@ -26,6 +27,7 @@ import me.ronygomes.ecommerce.core.messaging.CommandHandlerDispatcherAdapter;
 import me.ronygomes.ecommerce.core.messaging.MessageBus;
 import me.ronygomes.ecommerce.core.messaging.MessageDispatcherImpl;
 import me.ronygomes.ecommerce.core.messaging.MessageMetadata;
+import me.ronygomes.ecommerce.ordering.application.CancelOrderHandler;
 import me.ronygomes.ecommerce.ordering.application.MarkCheckoutCompletedHandler;
 import me.ronygomes.ecommerce.ordering.application.PlaceOrderCommand;
 import me.ronygomes.ecommerce.ordering.application.PlaceOrderHandler;
@@ -69,6 +71,9 @@ public class OrderingCommandHandlerProcess {
         dispatcher.registerHandler("MarkCheckoutCompletedCommand",
                 new CommandHandlerDispatcherAdapter<>(injector.getInstance(MarkCheckoutCompletedHandler.class),
                         MarkCheckoutCompletedCommand.class, processedCommandStore));
+        dispatcher.registerHandler("CancelOrderCommand",
+                new CommandHandlerDispatcherAdapter<>(injector.getInstance(CancelOrderHandler.class),
+                        CancelOrderCommand.class, processedCommandStore));
 
         OutboxDispatcher outboxDispatcher = new OutboxDispatcher(
                 injector.getInstance(OutboxStore.class),

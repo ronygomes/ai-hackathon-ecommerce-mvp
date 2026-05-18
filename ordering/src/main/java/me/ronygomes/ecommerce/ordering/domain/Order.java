@@ -1,6 +1,7 @@
 package me.ronygomes.ecommerce.ordering.domain;
 
 import me.ronygomes.ecommerce.checkout.saga.message.event.CheckoutRequested;
+import me.ronygomes.ecommerce.checkout.saga.message.event.OrderCancelled;
 import me.ronygomes.ecommerce.checkout.saga.message.event.OrderCreated;
 import me.ronygomes.ecommerce.core.domain.BaseAggregate;
 
@@ -65,6 +66,22 @@ public class Order extends BaseAggregate<OrderId> {
         this.status = OrderStatus.CONFIRMED;
         // Notify saga step or other systems that the order is now finalized
         addEvent(new OrderCreated(id.value().toString(), guestToken.value(), customerInfo.email()));
+    }
+
+    /**
+     * Cancels a pending order. Idempotent no-op if the order is already cancelled;
+     * throws if the order has already been confirmed (a confirmed order needs the
+     * refund/return flow, which is out of MVP scope).
+     */
+    public void cancel(String reason) {
+        if (this.status == OrderStatus.CANCELLED) {
+            return;
+        }
+        if (this.status == OrderStatus.CONFIRMED) {
+            throw new IllegalStateException("Cannot cancel a confirmed order: " + id.value());
+        }
+        this.status = OrderStatus.CANCELLED;
+        addEvent(new OrderCancelled(id.value().toString(), reason));
     }
 
     public OrderNumber getOrderNumber() {

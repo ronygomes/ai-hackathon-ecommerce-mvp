@@ -1,6 +1,7 @@
 package me.ronygomes.ecommerce.checkout.saga;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import me.ronygomes.ecommerce.checkout.saga.message.command.CancelOrderCommand;
 import me.ronygomes.ecommerce.checkout.saga.message.command.ClearCartCommand;
 import me.ronygomes.ecommerce.checkout.saga.message.command.DeductStockForOrderCommand;
 import me.ronygomes.ecommerce.checkout.saga.message.command.GetCartSnapshotCommand;
@@ -296,7 +297,7 @@ class SagaOrchestratorTest {
     }
 
     @Test
-    void stockBatchValidationFailed_lookedUpByCorrelationId_removesSaga() throws Exception {
+    void stockBatchValidationFailed_lookedUpByCorrelationId_sendsCancelOrderCommandAndRemovesSaga() throws Exception {
         UUID orderId = UUID.randomUUID();
         UUID productA = UUID.randomUUID();
         orchestrator.handle("CheckoutRequested", json(checkoutRequested(orderId, "g1", "k")));
@@ -312,7 +313,12 @@ class SagaOrchestratorTest {
                 correlationId)));
 
         assertThat(store.findByOrderId(orderId)).isEmpty();
-        verifyNoInteractions(orderBus);
+        ArgumentCaptor<Command<?>> sent = ArgumentCaptor.forClass(Command.class);
+        verify(orderBus).send(sent.capture());
+        assertThat(sent.getValue()).isInstanceOfSatisfying(CancelOrderCommand.class, cmd -> {
+            assertThat(cmd.orderId()).isEqualTo(orderId);
+            assertThat(cmd.reason()).contains("stock validation failed");
+        });
     }
 
     @Test
@@ -326,7 +332,7 @@ class SagaOrchestratorTest {
     }
 
     @Test
-    void stockDeductionFailed_removesSagaByOrderId() throws Exception {
+    void stockDeductionFailed_sendsCancelOrderCommandAndRemovesSagaByOrderId() throws Exception {
         UUID orderId = UUID.randomUUID();
         UUID productA = UUID.randomUUID();
         orchestrator.handle("CheckoutRequested", json(checkoutRequested(orderId, "g1", "k")));
@@ -338,7 +344,13 @@ class SagaOrchestratorTest {
                 json(new StockDeductionFailed(orderId, productA, 5, 1, "Insufficient stock")));
 
         assertThat(store.findByOrderId(orderId)).isEmpty();
-        verifyNoInteractions(orderBus);
+        ArgumentCaptor<Command<?>> sent = ArgumentCaptor.forClass(Command.class);
+        verify(orderBus).send(sent.capture());
+        assertThat(sent.getValue()).isInstanceOfSatisfying(CancelOrderCommand.class, cmd -> {
+            assertThat(cmd.orderId()).isEqualTo(orderId);
+            assertThat(cmd.reason()).contains("stock deduction failed");
+            assertThat(cmd.reason()).contains(productA.toString());
+        });
     }
 
     @Test
