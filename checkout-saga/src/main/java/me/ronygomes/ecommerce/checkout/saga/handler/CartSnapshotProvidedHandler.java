@@ -6,6 +6,7 @@ import me.ronygomes.ecommerce.checkout.saga.message.command.GetProductSnapshotsC
 import me.ronygomes.ecommerce.checkout.saga.message.event.CartSnapshotProvided;
 import me.ronygomes.ecommerce.core.application.CommandBus;
 import me.ronygomes.ecommerce.core.messaging.MessageHandler;
+import me.ronygomes.ecommerce.core.observability.MdcScope;
 
 import java.util.List;
 import java.util.UUID;
@@ -24,17 +25,19 @@ public class CartSnapshotProvidedHandler implements MessageHandler<CartSnapshotP
 
     @Override
     public CompletableFuture<Void> handle(CartSnapshotProvided event) {
-        SagaState state = store.findByCorrelationId(event.correlationId()).orElse(null);
-        if (state != null) {
-            state.cartItems = event.items();
-            state.totalItemsToDeduct = event.items().size();
-            store.save(state);
-            List<UUID> pids = event.items().stream()
-                    .map(CartSnapshotProvided.CartItemSnapshot::productId)
-                    .collect(Collectors.toList());
-            catalogBus.send(new GetProductSnapshotsCommand(pids, state.correlationId));
+        try (var ignored = MdcScope.with("correlationId", event.correlationId().toString())) {
+            SagaState state = store.findByCorrelationId(event.correlationId()).orElse(null);
+            if (state != null) {
+                state.cartItems = event.items();
+                state.totalItemsToDeduct = event.items().size();
+                store.save(state);
+                List<UUID> pids = event.items().stream()
+                        .map(CartSnapshotProvided.CartItemSnapshot::productId)
+                        .collect(Collectors.toList());
+                catalogBus.send(new GetProductSnapshotsCommand(pids, state.correlationId));
+            }
+            return CompletableFuture.completedFuture(null);
         }
-        return CompletableFuture.completedFuture(null);
     }
 
     @Override

@@ -1,6 +1,7 @@
 package me.ronygomes.ecommerce.core.messaging;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import me.ronygomes.ecommerce.core.observability.MdcScope;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -27,13 +28,20 @@ public class MessageDispatcherImpl implements MessageDispatcher {
             return CompletableFuture.completedFuture(null);
         }
 
-        try {
-            Object message = objectMapper.readValue(messageData, handler.getMessageType());
-            return handler.handle(message, metadata);
-        } catch (Exception e) {
-            CompletableFuture<Void> future = new CompletableFuture<>();
-            future.completeExceptionally(e);
-            return future;
+        // Push commandId (if present) into MDC so any log line emitted by the handler
+        // — including ones in downstream library code on this thread — carries the
+        // command correlation context. Saga step handlers push their own MDC keys
+        // (correlationId/orderId) inside the handler body.
+        String commandId = metadata == null ? null : metadata.commandId();
+        try (var ignored = MdcScope.with("commandId", commandId)) {
+            try {
+                Object message = objectMapper.readValue(messageData, handler.getMessageType());
+                return handler.handle(message, metadata);
+            } catch (Exception e) {
+                CompletableFuture<Void> future = new CompletableFuture<>();
+                future.completeExceptionally(e);
+                return future;
+            }
         }
     }
 }

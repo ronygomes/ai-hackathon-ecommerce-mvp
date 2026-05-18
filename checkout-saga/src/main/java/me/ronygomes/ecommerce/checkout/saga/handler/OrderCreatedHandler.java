@@ -6,6 +6,7 @@ import me.ronygomes.ecommerce.checkout.saga.message.command.ClearCartCommand;
 import me.ronygomes.ecommerce.checkout.saga.message.event.OrderCreated;
 import me.ronygomes.ecommerce.core.application.CommandBus;
 import me.ronygomes.ecommerce.core.messaging.MessageHandler;
+import me.ronygomes.ecommerce.core.observability.MdcScope;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -22,11 +23,13 @@ public class OrderCreatedHandler implements MessageHandler<OrderCreated> {
 
     @Override
     public CompletableFuture<Void> handle(OrderCreated event) {
-        SagaState state = store.findByOrderId(UUID.fromString(event.orderId())).orElse(null);
-        if (state != null) {
-            cartBus.send(new ClearCartCommand(state.guestToken, state.correlationId));
+        try (var ignored = MdcScope.with("orderId", event.orderId())) {
+            SagaState state = store.findByOrderId(UUID.fromString(event.orderId())).orElse(null);
+            if (state != null) {
+                cartBus.send(new ClearCartCommand(state.guestToken, state.correlationId));
+            }
+            return CompletableFuture.completedFuture(null);
         }
-        return CompletableFuture.completedFuture(null);
     }
 
     @Override

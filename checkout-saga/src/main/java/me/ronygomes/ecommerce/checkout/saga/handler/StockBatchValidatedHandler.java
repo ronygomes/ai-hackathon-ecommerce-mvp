@@ -6,6 +6,7 @@ import me.ronygomes.ecommerce.checkout.saga.message.command.DeductStockForOrderC
 import me.ronygomes.ecommerce.checkout.saga.message.event.StockBatchValidated;
 import me.ronygomes.ecommerce.core.application.CommandBus;
 import me.ronygomes.ecommerce.core.messaging.MessageHandler;
+import me.ronygomes.ecommerce.core.observability.MdcScope;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -23,16 +24,18 @@ public class StockBatchValidatedHandler implements MessageHandler<StockBatchVali
 
     @Override
     public CompletableFuture<Void> handle(StockBatchValidated event) {
-        SagaState state = store.findByCorrelationId(event.correlationId()).orElse(null);
-        if (state != null) {
-            state.stockValidated = true;
-            store.save(state);
-            List<DeductStockForOrderCommand.StockItemRequest> items = state.cartItems.stream()
-                    .map(i -> new DeductStockForOrderCommand.StockItemRequest(i.productId(), i.qty()))
-                    .collect(Collectors.toList());
-            inventoryBus.send(new DeductStockForOrderCommand(state.orderId, items));
+        try (var ignored = MdcScope.with("correlationId", event.correlationId().toString())) {
+            SagaState state = store.findByCorrelationId(event.correlationId()).orElse(null);
+            if (state != null) {
+                state.stockValidated = true;
+                store.save(state);
+                List<DeductStockForOrderCommand.StockItemRequest> items = state.cartItems.stream()
+                        .map(i -> new DeductStockForOrderCommand.StockItemRequest(i.productId(), i.qty()))
+                        .collect(Collectors.toList());
+                inventoryBus.send(new DeductStockForOrderCommand(state.orderId, items));
+            }
+            return CompletableFuture.completedFuture(null);
         }
-        return CompletableFuture.completedFuture(null);
     }
 
     @Override

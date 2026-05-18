@@ -6,6 +6,7 @@ import me.ronygomes.ecommerce.checkout.saga.message.command.ValidateStockBatchCo
 import me.ronygomes.ecommerce.checkout.saga.message.event.ProductSnapshotsProvided;
 import me.ronygomes.ecommerce.core.application.CommandBus;
 import me.ronygomes.ecommerce.core.messaging.MessageHandler;
+import me.ronygomes.ecommerce.core.observability.MdcScope;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -23,16 +24,18 @@ public class ProductSnapshotsProvidedHandler implements MessageHandler<ProductSn
 
     @Override
     public CompletableFuture<Void> handle(ProductSnapshotsProvided event) {
-        SagaState state = store.findByCorrelationId(event.correlationId()).orElse(null);
-        if (state != null) {
-            state.productSnapshots = event.snapshots();
-            store.save(state);
-            List<ValidateStockBatchCommand.StockItemRequest> items = state.cartItems.stream()
-                    .map(i -> new ValidateStockBatchCommand.StockItemRequest(i.productId(), i.qty()))
-                    .collect(Collectors.toList());
-            inventoryBus.send(new ValidateStockBatchCommand(items, state.correlationId));
+        try (var ignored = MdcScope.with("correlationId", event.correlationId().toString())) {
+            SagaState state = store.findByCorrelationId(event.correlationId()).orElse(null);
+            if (state != null) {
+                state.productSnapshots = event.snapshots();
+                store.save(state);
+                List<ValidateStockBatchCommand.StockItemRequest> items = state.cartItems.stream()
+                        .map(i -> new ValidateStockBatchCommand.StockItemRequest(i.productId(), i.qty()))
+                        .collect(Collectors.toList());
+                inventoryBus.send(new ValidateStockBatchCommand(items, state.correlationId));
+            }
+            return CompletableFuture.completedFuture(null);
         }
-        return CompletableFuture.completedFuture(null);
     }
 
     @Override

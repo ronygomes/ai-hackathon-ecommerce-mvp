@@ -6,6 +6,7 @@ import me.ronygomes.ecommerce.checkout.saga.message.command.MarkCheckoutComplete
 import me.ronygomes.ecommerce.checkout.saga.message.event.StockDeductedForOrder;
 import me.ronygomes.ecommerce.core.application.CommandBus;
 import me.ronygomes.ecommerce.core.messaging.MessageHandler;
+import me.ronygomes.ecommerce.core.observability.MdcScope;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -21,15 +22,17 @@ public class StockDeductedForOrderHandler implements MessageHandler<StockDeducte
 
     @Override
     public CompletableFuture<Void> handle(StockDeductedForOrder event) {
-        SagaState state = store.findByOrderId(event.orderId()).orElse(null);
-        if (state != null) {
-            state.deductedItemsCount++;
-            store.save(state);
-            if (state.deductedItemsCount >= state.totalItemsToDeduct) {
-                orderBus.send(new MarkCheckoutCompletedCommand(state.orderId));
+        try (var ignored = MdcScope.with("orderId", event.orderId().toString())) {
+            SagaState state = store.findByOrderId(event.orderId()).orElse(null);
+            if (state != null) {
+                state.deductedItemsCount++;
+                store.save(state);
+                if (state.deductedItemsCount >= state.totalItemsToDeduct) {
+                    orderBus.send(new MarkCheckoutCompletedCommand(state.orderId));
+                }
             }
+            return CompletableFuture.completedFuture(null);
         }
-        return CompletableFuture.completedFuture(null);
     }
 
     @Override

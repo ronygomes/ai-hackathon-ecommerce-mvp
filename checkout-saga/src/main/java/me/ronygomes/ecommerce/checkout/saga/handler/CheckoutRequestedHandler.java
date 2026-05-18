@@ -6,7 +6,9 @@ import me.ronygomes.ecommerce.checkout.saga.message.command.GetCartSnapshotComma
 import me.ronygomes.ecommerce.checkout.saga.message.event.CheckoutRequested;
 import me.ronygomes.ecommerce.core.application.CommandBus;
 import me.ronygomes.ecommerce.core.messaging.MessageHandler;
+import me.ronygomes.ecommerce.core.observability.MdcScope;
 
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -23,10 +25,14 @@ public class CheckoutRequestedHandler implements MessageHandler<CheckoutRequeste
     @Override
     public CompletableFuture<Void> handle(CheckoutRequested event) {
         UUID correlationId = UUID.randomUUID();
-        SagaState state = new SagaState(event.orderId(), correlationId, event.guestToken(), event.idempotencyKey());
-        store.save(state);
-        cartBus.send(new GetCartSnapshotCommand(event.guestToken(), correlationId));
-        return CompletableFuture.completedFuture(null);
+        try (var ignored = MdcScope.with(Map.of(
+                "correlationId", correlationId.toString(),
+                "orderId", event.orderId().toString()))) {
+            SagaState state = new SagaState(event.orderId(), correlationId, event.guestToken(), event.idempotencyKey());
+            store.save(state);
+            cartBus.send(new GetCartSnapshotCommand(event.guestToken(), correlationId));
+            return CompletableFuture.completedFuture(null);
+        }
     }
 
     @Override

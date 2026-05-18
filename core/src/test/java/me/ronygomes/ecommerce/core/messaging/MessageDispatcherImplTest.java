@@ -1,8 +1,10 @@
 package me.ronygomes.ecommerce.core.messaging;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.MDC;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -21,6 +23,11 @@ class MessageDispatcherImplTest {
     @BeforeEach
     void setUp() {
         dispatcher = new MessageDispatcherImpl(new ObjectMapper());
+    }
+
+    @AfterEach
+    void cleanUpMdc() {
+        MDC.clear();
     }
 
     @Test
@@ -97,6 +104,49 @@ class MessageDispatcherImplTest {
 
         assertThat(result).isCompletedExceptionally();
         assertThatThrownBy(result::get).isInstanceOf(ExecutionException.class);
+    }
+
+    @Test
+    void dispatch_pushesCommandIdIntoMdcForHandlerInvocation_andRemovesAfter() throws Exception {
+        AtomicReference<String> mdcDuringHandler = new AtomicReference<>();
+        dispatcher.registerHandler("Payload", new MessageHandler<Payload>() {
+            @Override
+            public CompletableFuture<Void> handle(Payload message) {
+                mdcDuringHandler.set(MDC.get("commandId"));
+                return CompletableFuture.completedFuture(null);
+            }
+
+            @Override
+            public Class<Payload> getMessageType() {
+                return Payload.class;
+            }
+        });
+
+        dispatcher.dispatch("Payload", "{\"value\":\"x\"}", MessageMetadata.withCommandId("cmd-42")).get();
+
+        assertThat(mdcDuringHandler.get()).isEqualTo("cmd-42");
+        assertThat(MDC.get("commandId")).isNull();
+    }
+
+    @Test
+    void dispatch_withNullCommandIdInMetadata_doesNotPushAnyMdcEntry() throws Exception {
+        AtomicReference<String> mdcDuringHandler = new AtomicReference<>("not-set");
+        dispatcher.registerHandler("Payload", new MessageHandler<Payload>() {
+            @Override
+            public CompletableFuture<Void> handle(Payload message) {
+                mdcDuringHandler.set(MDC.get("commandId"));
+                return CompletableFuture.completedFuture(null);
+            }
+
+            @Override
+            public Class<Payload> getMessageType() {
+                return Payload.class;
+            }
+        });
+
+        dispatcher.dispatch("Payload", "{\"value\":\"x\"}", MessageMetadata.empty()).get();
+
+        assertThat(mdcDuringHandler.get()).isNull();
     }
 
     @Test

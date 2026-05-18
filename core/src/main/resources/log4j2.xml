@@ -2,7 +2,10 @@
 <Configuration status="WARN">
     <Properties>
         <Property name="LOG_FILE_NAME">logs/app</Property>
-        <Property name="LOG_PATTERN">%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</Property>
+        <!-- Pattern includes MDC fields: any key pushed via MdcScope / SLF4J MDC shows
+             as key=value pairs after the thread name. Saga handlers push correlationId
+             and orderId; subsystem command handlers push commandId via MessageDispatcher. -->
+        <Property name="LOG_PATTERN">%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %X %logger{36} - %msg%n</Property>
     </Properties>
 
     <Appenders>
