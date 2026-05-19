@@ -2,12 +2,17 @@ package me.ronygomes.ecommerce.core.messaging;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import me.ronygomes.ecommerce.core.observability.MdcScope;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 public class MessageDispatcherImpl implements MessageDispatcher {
+
+    private static final Logger log = LoggerFactory.getLogger(MessageDispatcherImpl.class);
+
     private final Map<String, MessageHandler<?>> handlers = new HashMap<>();
     private final ObjectMapper objectMapper;
 
@@ -24,7 +29,7 @@ public class MessageDispatcherImpl implements MessageDispatcher {
     public CompletableFuture<Void> dispatch(String messageType, String messageData, MessageMetadata metadata) {
         MessageHandler handler = handlers.get(messageType);
         if (handler == null) {
-            System.err.println("No handler registered for message type: " + messageType);
+            log.warn("No handler registered for message type: {}", messageType);
             return CompletableFuture.completedFuture(null);
         }
 

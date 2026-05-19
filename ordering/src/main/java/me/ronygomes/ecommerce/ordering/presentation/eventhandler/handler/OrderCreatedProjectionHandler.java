@@ -5,12 +5,17 @@ import com.mongodb.client.model.ReplaceOptions;
 import me.ronygomes.ecommerce.checkout.saga.message.event.OrderCreated;
 import me.ronygomes.ecommerce.core.messaging.MessageHandler;
 import org.bson.Document;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CompletableFuture;
 
 import static com.mongodb.client.model.Filters.eq;
 
 public class OrderCreatedProjectionHandler implements MessageHandler<OrderCreated> {
+
+    private static final Logger log = LoggerFactory.getLogger(OrderCreatedProjectionHandler.class);
+
     private final MongoCollection<Document> collection;
 
     public OrderCreatedProjectionHandler(MongoCollection<Document> collection) {
@@ -25,7 +30,7 @@ public class OrderCreatedProjectionHandler implements MessageHandler<OrderCreate
                 .append("customerEmail", event.customerEmail());
 
         collection.replaceOne(eq("_id", event.orderId()), doc, new ReplaceOptions().upsert(true));
-        System.out.println("Projected completed order: " + event.orderId());
+        log.info("Projected completed order: {}", event.orderId());
         return CompletableFuture.completedFuture(null);
     }
 

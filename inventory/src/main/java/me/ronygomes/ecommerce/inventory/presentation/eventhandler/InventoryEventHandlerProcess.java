@@ -12,11 +12,16 @@ import me.ronygomes.ecommerce.inventory.presentation.eventhandler.handler.StockD
 import me.ronygomes.ecommerce.inventory.presentation.eventhandler.handler.StockItemCreatedHandler;
 import me.ronygomes.ecommerce.inventory.presentation.eventhandler.handler.StockSetHandler;
 import org.bson.Document;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.Map;
 
 public class InventoryEventHandlerProcess {
+
+    private static final Logger log = LoggerFactory.getLogger(InventoryEventHandlerProcess.class);
+
     static void main() throws Exception {
         AppConfig config = AppConfig.fromEnv();
         MongoClient mongoClient = new MongoClientProvider(config).get();
@@ -41,7 +46,7 @@ public class InventoryEventHandlerProcess {
         dispatcher.registerHandler("StockSet", new StockSetHandler(stockAvailabilityCollection));
         dispatcher.registerHandler("StockDeductedForOrder", new StockDeductedHandler(stockAvailabilityCollection));
 
-        System.out.println("InventoryEventHandler waiting for events (Dispatcher Pattern) on " + exchangeName);
+        log.info("InventoryEventHandler waiting for events on {}", exchangeName);
 
         DeliverCallback deliverCallback = (consumerTag, delivery) -> {
             String message = new String(delivery.getBody(), "UTF-8");
@@ -56,11 +61,11 @@ public class InventoryEventHandlerProcess {
                         try {
                             channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
                         } catch (Exception e) {
-                            e.printStackTrace();
+                            log.error("Failed to ack delivery (messageType={})", messageType, e);
                         }
                     })
                     .exceptionally(e -> {
-                        e.printStackTrace();
+                        log.error("Projection handler failed (messageType={})", messageType, e);
                         return null;
                     });
         };

@@ -9,11 +9,16 @@ import me.ronygomes.ecommerce.core.messaging.MessageDispatcherImpl;
 import me.ronygomes.ecommerce.core.messaging.MessageMetadata;
 import me.ronygomes.ecommerce.ordering.presentation.eventhandler.handler.OrderCreatedProjectionHandler;
 import org.bson.Document;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.Map;
 
 public class OrderingEventHandlerProcess {
+
+    private static final Logger log = LoggerFactory.getLogger(OrderingEventHandlerProcess.class);
+
     static void main() throws Exception {
         AppConfig config = AppConfig.fromEnv();
         MongoClient mongoClient = new MongoClientProvider(config).get();
@@ -36,7 +41,7 @@ public class OrderingEventHandlerProcess {
         // Register handlers
         dispatcher.registerHandler("OrderCreated", new OrderCreatedProjectionHandler(collection));
 
-        System.out.println("Ordering EventHandler waiting for events (Dispatcher Pattern) on " + queueName);
+        log.info("Ordering EventHandler waiting for events on {}", queueName);
 
         DeliverCallback deliverCallback = (consumerTag, delivery) -> {
             String message = new String(delivery.getBody(), "UTF-8");
@@ -51,11 +56,11 @@ public class OrderingEventHandlerProcess {
                         try {
                             channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
                         } catch (Exception e) {
-                            e.printStackTrace();
+                            log.error("Failed to ack delivery (messageType={})", messageType, e);
                         }
                     })
                     .exceptionally(e -> {
-                        e.printStackTrace();
+                        log.error("Projection handler failed (messageType={})", messageType, e);
                         return null;
                     });
         };

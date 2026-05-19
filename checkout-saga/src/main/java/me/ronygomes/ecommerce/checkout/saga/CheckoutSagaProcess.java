@@ -13,10 +13,15 @@ import me.ronygomes.ecommerce.core.infrastructure.MongoClientProvider;
 import me.ronygomes.ecommerce.core.infrastructure.RabbitMQCommandBus;
 import me.ronygomes.ecommerce.core.infrastructure.idempotency.MongoProcessedCommandStore;
 import me.ronygomes.ecommerce.core.infrastructure.idempotency.ProcessedCommandStore;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
 public class CheckoutSagaProcess {
+
+    private static final Logger log = LoggerFactory.getLogger(CheckoutSagaProcess.class);
+
 
     static void main() throws Exception {
         AppConfig config = AppConfig.fromEnv();
@@ -45,7 +50,7 @@ public class CheckoutSagaProcess {
         channel.queueBind(queueName, "product_catalog_events", "");
         channel.queueBind(queueName, "inventory_events", "");
 
-        System.out.println("CheckoutSaga Coordinator waiting for events (Switch Case Pattern)...");
+        log.info("CheckoutSaga Coordinator waiting for events on {}", queueName);
 
         DeliverCallback deliverCallback = (consumerTag, delivery) -> {
             String message = new String(delivery.getBody(), "UTF-8");
@@ -59,7 +64,7 @@ public class CheckoutSagaProcess {
                 orchestrator.handle(messageType, message);
                 channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
             } catch (Exception e) {
-                e.printStackTrace();
+                log.error("Saga handler failed (messageType={})", messageType, e);
             }
         };
 

@@ -41,6 +41,8 @@ import me.ronygomes.ecommerce.productcatalog.domain.Product;
 import me.ronygomes.ecommerce.productcatalog.domain.ProductId;
 import me.ronygomes.ecommerce.productcatalog.infrastructure.MongoProductRepository;
 import me.ronygomes.ecommerce.productcatalog.infrastructure.ProductCatalogMessageBus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -48,6 +50,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class CommandHandlerProcess {
+
+    private static final Logger log = LoggerFactory.getLogger(CommandHandlerProcess.class);
 
     private static final String OUTBOX_COLLECTION = "product_catalog_outbox";
     private static final String PROCESSED_COMMANDS_COLLECTION = "product_catalog_processed_commands";
@@ -102,11 +106,11 @@ public class CommandHandlerProcess {
             try {
                 outboxDispatcher.tick();
             } catch (Exception e) {
-                e.printStackTrace();
+                log.error("Outbox dispatcher tick failed", e);
             }
         }, OUTBOX_TICK_INTERVAL_MS, OUTBOX_TICK_INTERVAL_MS, TimeUnit.MILLISECONDS);
 
-        System.out.println("ProductCatalog CommandHandler waiting for messages (Dispatcher Pattern) on " + queueName);
+        log.info("ProductCatalog CommandHandler waiting for messages on {}", queueName);
 
         DeliverCallback deliverCallback = (consumerTag, delivery) -> {
             String message = new String(delivery.getBody(), "UTF-8");
@@ -124,11 +128,12 @@ public class CommandHandlerProcess {
                         try {
                             channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
                         } catch (Exception e) {
-                            e.printStackTrace();
+                            log.error("Failed to ack delivery (commandId={}, messageType={})",
+                                    commandId, messageType, e);
                         }
                     })
                     .exceptionally(e -> {
-                        e.printStackTrace();
+                        log.error("Handler failed (commandId={}, messageType={})", commandId, messageType, e);
                         return null;
                     });
         };
