@@ -11,17 +11,27 @@ import me.ronygomes.ecommerce.cart.application.UpdateCartItemQtyCommand;
 import me.ronygomes.ecommerce.core.application.CommandBus;
 import me.ronygomes.ecommerce.core.infrastructure.AppConfig;
 import me.ronygomes.ecommerce.core.infrastructure.RabbitMQCommandBus;
+import me.ronygomes.ecommerce.core.infrastructure.Validator;
+import me.ronygomes.ecommerce.core.infrastructure.WebHelper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.UUID;
 
 public class CartCommandApi {
 
-    public static void register(JavalinConfig config, CommandBus commandBus, ObjectMapper objectMapper) {
+    private static final Logger log = LoggerFactory.getLogger(CartCommandApi.class);
+
+    public static void register(JavalinConfig config, CommandBus commandBus, ObjectMapper objectMapper,
+                                Validator validator) {
 
         config.routes.post("/cart/{guestToken}/items", ctx -> {
             String guestToken = ctx.pathParam("guestToken");
             AddItemToCartRequest body = objectMapper.readValue(ctx.body(), AddItemToCartRequest.class);
-            commandBus.send(new AddCartItemCommand(guestToken, UUID.fromString(body.productId()), body.qty()));
+            AddCartItemCommand command = new AddCartItemCommand(
+                    guestToken, UUID.fromString(body.productId()), body.qty());
+            validator.validate(command);
+            commandBus.send(command);
             ctx.status(HttpStatus.ACCEPTED);
             ctx.result("{}");
         });
@@ -30,7 +40,10 @@ public class CartCommandApi {
             String guestToken = ctx.pathParam("guestToken");
             String productId = ctx.pathParam("productId");
             UpdateCartItemRequest body = objectMapper.readValue(ctx.body(), UpdateCartItemRequest.class);
-            commandBus.send(new UpdateCartItemQtyCommand(guestToken, UUID.fromString(productId), body.qty()));
+            UpdateCartItemQtyCommand command = new UpdateCartItemQtyCommand(
+                    guestToken, UUID.fromString(productId), body.qty());
+            validator.validate(command);
+            commandBus.send(command);
             ctx.status(HttpStatus.ACCEPTED);
             ctx.result("{}");
         });
@@ -38,7 +51,9 @@ public class CartCommandApi {
         config.routes.delete("/cart/{guestToken}/items/{productId}", ctx -> {
             String guestToken = ctx.pathParam("guestToken");
             String productId = ctx.pathParam("productId");
-            commandBus.send(new RemoveCartItemCommand(guestToken, UUID.fromString(productId)));
+            RemoveCartItemCommand command = new RemoveCartItemCommand(guestToken, UUID.fromString(productId));
+            validator.validate(command);
+            commandBus.send(command);
             ctx.status(HttpStatus.ACCEPTED);
             ctx.result("{}");
         });
@@ -52,14 +67,17 @@ public class CartCommandApi {
             ctx.status(HttpStatus.ACCEPTED);
             ctx.result("{}");
         });
+
+        WebHelper.registerDefaultExceptionHandler(config, log);
     }
 
     static void main() {
         AppConfig appConfig = AppConfig.fromEnv();
         CommandBus commandBus = new RabbitMQCommandBus("cart_commands", appConfig.rabbitHost());
         ObjectMapper objectMapper = new ObjectMapper();
+        Validator validator = new Validator();
 
-        Javalin.create(cfg -> register(cfg, commandBus, objectMapper)).start(8084);
+        Javalin.create(cfg -> register(cfg, commandBus, objectMapper, validator)).start(8084);
     }
 
     public record AddItemToCartRequest(String productId, int qty) {

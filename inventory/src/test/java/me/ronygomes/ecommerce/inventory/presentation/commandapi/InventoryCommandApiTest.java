@@ -7,6 +7,7 @@ import io.javalin.testtools.JavalinTest;
 import me.ronygomes.ecommerce.checkout.saga.message.command.DeductStockForOrderCommand;
 import me.ronygomes.ecommerce.core.application.Command;
 import me.ronygomes.ecommerce.core.application.CommandBus;
+import me.ronygomes.ecommerce.core.infrastructure.Validator;
 import me.ronygomes.ecommerce.inventory.application.SetStockCommand;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -23,9 +24,11 @@ import static org.mockito.Mockito.when;
 class InventoryCommandApiTest {
 
     private final CommandBus commandBus = mock(CommandBus.class);
+    private final Validator validator = new Validator();
 
     private Javalin setupApp() {
-        return Javalin.create(config -> InventoryCommandApi.register(config, commandBus, new ObjectMapper()));
+        return Javalin.create(config -> InventoryCommandApi.register(
+                config, commandBus, new ObjectMapper(), validator));
     }
 
     @Test
@@ -72,10 +75,40 @@ class InventoryCommandApiTest {
     }
 
     @Test
-    void postStock_withMalformedJson_returns500ViaExceptionHandler() {
+    void postStock_withMalformedJson_returns400ViaWebHelperJsonParseHandler() {
         JavalinTest.test(setupApp(), (server, client) -> {
             var response = client.post("/inventory/stock", "{ not json");
-            assertThat(response.code()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR.getCode());
+            assertThat(response.code()).isEqualTo(HttpStatus.BAD_REQUEST.getCode());
+        });
+    }
+
+    @Test
+    void postStock_withNegativeQty_returns400AndDoesNotDispatch() {
+        when(commandBus.send(any())).thenReturn(CompletableFuture.completedFuture(null));
+        UUID pid = UUID.randomUUID();
+        String body = "{\"productId\":\"" + pid + "\",\"newQty\":-1,\"reason\":\"restock\"}";
+
+        JavalinTest.test(setupApp(), (server, client) -> {
+            var response = client.post("/inventory/stock", body);
+
+            assertThat(response.code()).isEqualTo(HttpStatus.BAD_REQUEST.getCode());
+            assertThat(response.body().string()).contains("newQty must be >= 0");
+            verify(commandBus, org.mockito.Mockito.never()).send(any());
+        });
+    }
+
+    @Test
+    void postStock_withMissingReason_returns400AndDoesNotDispatch() {
+        when(commandBus.send(any())).thenReturn(CompletableFuture.completedFuture(null));
+        UUID pid = UUID.randomUUID();
+        String body = "{\"productId\":\"" + pid + "\",\"newQty\":5}";
+
+        JavalinTest.test(setupApp(), (server, client) -> {
+            var response = client.post("/inventory/stock", body);
+
+            assertThat(response.code()).isEqualTo(HttpStatus.BAD_REQUEST.getCode());
+            assertThat(response.body().string()).contains("reason cannot be empty");
+            verify(commandBus, org.mockito.Mockito.never()).send(any());
         });
     }
 }

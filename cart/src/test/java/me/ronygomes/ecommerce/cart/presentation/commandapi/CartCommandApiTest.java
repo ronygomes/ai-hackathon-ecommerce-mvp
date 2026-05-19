@@ -10,6 +10,7 @@ import me.ronygomes.ecommerce.cart.application.RemoveCartItemCommand;
 import me.ronygomes.ecommerce.cart.application.UpdateCartItemQtyCommand;
 import me.ronygomes.ecommerce.core.application.Command;
 import me.ronygomes.ecommerce.core.application.CommandBus;
+import me.ronygomes.ecommerce.core.infrastructure.Validator;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -25,10 +26,11 @@ import static org.mockito.Mockito.when;
 class CartCommandApiTest {
 
     private final CommandBus commandBus = mock(CommandBus.class);
+    private final Validator validator = new Validator();
 
     private Javalin setupApp() {
         when(commandBus.send(any())).thenReturn(CompletableFuture.completedFuture(null));
-        return Javalin.create(config -> CartCommandApi.register(config, commandBus, new ObjectMapper()));
+        return Javalin.create(config -> CartCommandApi.register(config, commandBus, new ObjectMapper(), validator));
     }
 
     @Test
@@ -92,6 +94,20 @@ class CartCommandApiTest {
             verify(commandBus).send(captor.capture());
             assertThat(captor.getValue()).isInstanceOfSatisfying(ClearCartCommand.class, cmd ->
                     assertThat(cmd.guestToken()).isEqualTo("guest-1"));
+        });
+    }
+
+    @Test
+    void postItem_withZeroQty_returns400AndDoesNotDispatch() {
+        UUID productId = UUID.randomUUID();
+
+        JavalinTest.test(setupApp(), (server, client) -> {
+            var response = client.post("/cart/guest-1/items",
+                    "{\"productId\":\"" + productId + "\",\"qty\":0}");
+
+            assertThat(response.code()).isEqualTo(HttpStatus.BAD_REQUEST.getCode());
+            assertThat(response.body().string()).contains("qty must be >= 1");
+            verify(commandBus, org.mockito.Mockito.never()).send(any());
         });
     }
 }
