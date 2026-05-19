@@ -23,7 +23,7 @@ public record AppConfig(String mongoUri, String mongoDbName, String rabbitHost) 
         return new AppConfig(
                 env("MONGO_URI", "mongodb://admin:admin@localhost:27017"),
                 env("MONGO_DB", "ecommerce_mvp"),
-                env("RABBIT_HOST", "localhost"));
+                env("RABBITMQ_HOST", "localhost"));
     }
 
     private static String env(String key, String defaultValue) {

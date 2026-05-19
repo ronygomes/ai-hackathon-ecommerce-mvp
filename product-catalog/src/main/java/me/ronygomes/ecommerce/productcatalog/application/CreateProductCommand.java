@@ -9,9 +9,9 @@ import me.ronygomes.ecommerce.productcatalog.domain.ProductId;
 import java.util.UUID;
 
 public record CreateProductCommand(
-                @NotNull UUID productId,
-                @NotBlank(message = "sku cannot be empty") String sku,
-                @NotBlank(message = "name cannot be empty") String name,
-                @Positive(message = "price must be positive") double price,
-                String description) implements Command<ProductId> {
+        @NotNull UUID productId,
+        @NotBlank(message = "sku cannot be empty") String sku,
+        @NotBlank(message = "name cannot be empty") String name,
+        @Positive(message = "price must be positive") double price,
+        String description) implements Command<ProductId> {
 }

@@ -15,7 +15,7 @@ public class ProductDeactivatedProjectionHandler implements MessageHandler<Produ
     private final MongoCollection<Document> detailView;
 
     public ProductDeactivatedProjectionHandler(MongoCollection<Document> listView,
-            MongoCollection<Document> detailView) {
+                                               MongoCollection<Document> detailView) {
         this.listView = listView;
         this.detailView = detailView;
     }

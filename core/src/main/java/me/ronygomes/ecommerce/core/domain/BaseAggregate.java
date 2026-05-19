@@ -7,10 +7,17 @@ import java.util.Collections;
 import java.util.List;
 
 public abstract class BaseAggregate<TId> implements AggregateRoot<TId> {
+
     protected TId id;
-    protected Long version = 0L;
+    protected Long version;
+
     @JsonIgnore
-    private final List<DomainEvent> uncommittedEvents = new ArrayList<>();
+    private final List<DomainEvent> uncommittedEvents;
+
+    public BaseAggregate() {
+        this.version = 0L;
+        this.uncommittedEvents = new ArrayList<>();
+    }
 
     @Override
     public TId getId() {

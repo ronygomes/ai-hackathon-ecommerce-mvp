@@ -16,7 +16,7 @@ public class OrderLineItem {
     }
 
     public OrderLineItem(UUID productId, String skuSnapshot, String nameSnapshot, double unitPriceSnapshot,
-            int quantity) {
+                         int quantity) {
         this.productId = Objects.requireNonNull(productId);
         this.skuSnapshot = Objects.requireNonNull(skuSnapshot);
         this.nameSnapshot = Objects.requireNonNull(nameSnapshot);

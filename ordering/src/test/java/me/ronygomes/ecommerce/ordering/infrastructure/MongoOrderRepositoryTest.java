@@ -6,14 +6,7 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.ReplaceOptions;
 import me.ronygomes.ecommerce.core.infrastructure.AppConfig;
-import me.ronygomes.ecommerce.ordering.domain.CustomerInfo;
-import me.ronygomes.ecommerce.ordering.domain.GuestToken;
-import me.ronygomes.ecommerce.ordering.domain.IdempotencyKey;
-import me.ronygomes.ecommerce.ordering.domain.Order;
-import me.ronygomes.ecommerce.ordering.domain.OrderId;
-import me.ronygomes.ecommerce.ordering.domain.OrderLineItem;
-import me.ronygomes.ecommerce.ordering.domain.OrderStatus;
-import me.ronygomes.ecommerce.ordering.domain.ShippingAddress;
+import me.ronygomes.ecommerce.ordering.domain.*;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,9 +19,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 class MongoOrderRepositoryTest {
 

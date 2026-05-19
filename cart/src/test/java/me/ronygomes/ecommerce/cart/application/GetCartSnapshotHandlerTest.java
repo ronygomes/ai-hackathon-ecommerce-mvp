@@ -1,13 +1,9 @@
 package me.ronygomes.ecommerce.cart.application;
 
+import me.ronygomes.ecommerce.cart.domain.*;
+import me.ronygomes.ecommerce.cart.infrastructure.CartRepository;
 import me.ronygomes.ecommerce.checkout.saga.message.command.GetCartSnapshotCommand;
 import me.ronygomes.ecommerce.checkout.saga.message.event.CartSnapshotProvided;
-import me.ronygomes.ecommerce.cart.domain.CartId;
-import me.ronygomes.ecommerce.cart.domain.GuestToken;
-import me.ronygomes.ecommerce.cart.domain.ProductId;
-import me.ronygomes.ecommerce.cart.domain.Quantity;
-import me.ronygomes.ecommerce.cart.domain.ShoppingCart;
-import me.ronygomes.ecommerce.cart.infrastructure.CartRepository;
 import me.ronygomes.ecommerce.core.domain.DomainEvent;
 import me.ronygomes.ecommerce.core.messaging.MessageBus;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,9 +17,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 class GetCartSnapshotHandlerTest {
 

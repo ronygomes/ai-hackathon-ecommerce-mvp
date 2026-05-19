@@ -47,7 +47,7 @@ class AppConfigTest {
         if (System.getenv("MONGO_DB") == null || System.getenv("MONGO_DB").isBlank()) {
             assertThat(config.mongoDbName()).isEqualTo("ecommerce_mvp");
         }
-        if (System.getenv("RABBIT_HOST") == null || System.getenv("RABBIT_HOST").isBlank()) {
+        if (System.getenv("RABBITMQ_HOST") == null || System.getenv("RABBITMQ_HOST").isBlank()) {
             assertThat(config.rabbitHost()).isEqualTo("localhost");
         }
     }

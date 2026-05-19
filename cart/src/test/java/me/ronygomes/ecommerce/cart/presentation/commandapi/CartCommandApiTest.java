@@ -4,10 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.javalin.Javalin;
 import io.javalin.http.HttpStatus;
 import io.javalin.testtools.JavalinTest;
-import me.ronygomes.ecommerce.checkout.saga.message.command.ClearCartCommand;
 import me.ronygomes.ecommerce.cart.application.AddCartItemCommand;
 import me.ronygomes.ecommerce.cart.application.RemoveCartItemCommand;
 import me.ronygomes.ecommerce.cart.application.UpdateCartItemQtyCommand;
+import me.ronygomes.ecommerce.checkout.saga.message.command.ClearCartCommand;
 import me.ronygomes.ecommerce.core.application.Command;
 import me.ronygomes.ecommerce.core.application.CommandBus;
 import me.ronygomes.ecommerce.core.infrastructure.Validator;
@@ -19,9 +19,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 class CartCommandApiTest {
 

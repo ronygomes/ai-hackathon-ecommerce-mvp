@@ -1,11 +1,6 @@
 package me.ronygomes.ecommerce.cart.application;
 
-import me.ronygomes.ecommerce.cart.domain.CartId;
-import me.ronygomes.ecommerce.cart.domain.CartItemQuantityUpdated;
-import me.ronygomes.ecommerce.cart.domain.GuestToken;
-import me.ronygomes.ecommerce.cart.domain.ProductId;
-import me.ronygomes.ecommerce.cart.domain.Quantity;
-import me.ronygomes.ecommerce.cart.domain.ShoppingCart;
+import me.ronygomes.ecommerce.cart.domain.*;
 import me.ronygomes.ecommerce.cart.infrastructure.CartRepository;
 import me.ronygomes.ecommerce.core.domain.DomainEvent;
 import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxStore;
@@ -21,11 +16,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 class UpdateCartItemQtyHandlerTest {
 

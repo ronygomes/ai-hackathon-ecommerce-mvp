@@ -8,7 +8,8 @@ using AntiGravity.
 
 ## Running locally
 
-The system is 17 JVM processes (4 per subsystem × 4 subsystems + 1 saga) plus RabbitMQ and MongoDB. They're orchestrated with [Overmind](https://github.com/DarthSim/overmind) reading the [Procfile](./Procfile).
+The system is 17 JVM processes (4 per subsystem × 4 subsystems + 1 saga) plus RabbitMQ and MongoDB. They're orchestrated
+with [Overmind](https://github.com/DarthSim/overmind) reading the [Procfile](./Procfile).
 
 ### One-time setup
 
@@ -34,12 +35,12 @@ docker compose down
 
 ### Port map
 
-| Subsystem | Command API | Query API |
-|---|---|---|
-| product-catalog | 8080 | 8081 |
-| inventory | 8082 | 8083 |
-| cart | 8084 | 8085 |
-| ordering | 8086 | 8087 |
+| Subsystem       | Command API | Query API |
+|-----------------|-------------|-----------|
+| product-catalog | 8080        | 8081      |
+| inventory       | 8082        | 8083      |
+| cart            | 8084        | 8085      |
+| ordering        | 8086        | 8087      |
 
 CommandHandler, EventHandler, and SagaProcess have no HTTP port — they're message-bus consumers.
 

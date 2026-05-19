@@ -11,10 +11,6 @@ import java.util.concurrent.CompletableFuture;
  * seen the delegate handler runs and the id is marked as processed on success;
  * subsequent deliveries of the same id short-circuit to a completed future without
  * touching the delegate.
- *
- * <p>Reuses {@link ProcessedCommandStore} as a generic "things processed by id" store
- * — the name is historical (subsystem command handlers were the first consumer in
- * chunk 4c). Renaming touches every subsystem that wired one in; deferred.
  */
 public class IdempotentMessageHandler<T extends DomainEvent> implements MessageHandler<T> {
 
@@ -35,14 +31,12 @@ public class IdempotentMessageHandler<T extends DomainEvent> implements MessageH
     public CompletableFuture<Void> handle(T message, MessageMetadata metadata) {
         String eventId = message.getEventId();
         if (eventId == null) {
-            // No id to dedupe on — degrade to plain dispatch.
             return delegate.handle(message, metadata);
         }
         if (store.wasProcessed(eventId)) {
             return CompletableFuture.completedFuture(null);
         }
         return delegate.handle(message, metadata).thenApply(v -> {
-            // Only mark after the delegate succeeds — a failed handler can retry.
             store.markProcessed(eventId, message.getClass().getSimpleName());
             return null;
         });

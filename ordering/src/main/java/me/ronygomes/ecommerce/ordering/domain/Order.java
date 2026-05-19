@@ -22,8 +22,8 @@ public class Order extends BaseAggregate<OrderId> {
     }
 
     private Order(OrderId id, OrderNumber orderNumber, GuestToken guestToken, CustomerInfo customerInfo,
-            ShippingAddress shippingAddress, List<OrderLineItem> items, OrderTotals totals,
-            IdempotencyKey idempotencyKey) {
+                  ShippingAddress shippingAddress, List<OrderLineItem> items, OrderTotals totals,
+                  IdempotencyKey idempotencyKey) {
         this.id = id;
         this.orderNumber = orderNumber;
         this.guestToken = guestToken;
@@ -36,7 +36,7 @@ public class Order extends BaseAggregate<OrderId> {
     }
 
     public static Order place(OrderId id, GuestToken guestToken, CustomerInfo customerInfo, ShippingAddress address,
-            List<OrderLineItem> items, IdempotencyKey idempotencyKey) {
+                              List<OrderLineItem> items, IdempotencyKey idempotencyKey) {
         if (items == null || items.isEmpty()) {
             throw new IllegalArgumentException("Cannot place an order with no items");
         }

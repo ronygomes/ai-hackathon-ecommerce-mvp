@@ -3,11 +3,7 @@ package me.ronygomes.ecommerce.inventory.application;
 import me.ronygomes.ecommerce.core.domain.DomainEvent;
 import me.ronygomes.ecommerce.core.infrastructure.Repository;
 import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxStore;
-import me.ronygomes.ecommerce.inventory.domain.InventoryItem;
-import me.ronygomes.ecommerce.inventory.domain.ProductId;
-import me.ronygomes.ecommerce.inventory.domain.Quantity;
-import me.ronygomes.ecommerce.inventory.domain.StockItemCreated;
-import me.ronygomes.ecommerce.inventory.domain.StockSet;
+import me.ronygomes.ecommerce.inventory.domain.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -21,10 +17,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 class SetStockHandlerTest {
 

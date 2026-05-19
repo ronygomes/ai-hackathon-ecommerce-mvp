@@ -1,9 +1,11 @@
 package me.ronygomes.ecommerce.inventory.presentation.eventhandler;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.rabbitmq.client.*;
+import me.ronygomes.ecommerce.core.application.Command;
 import me.ronygomes.ecommerce.core.infrastructure.AppConfig;
 import me.ronygomes.ecommerce.core.infrastructure.MongoClientProvider;
 import me.ronygomes.ecommerce.core.messaging.MessageDispatcherImpl;
@@ -14,8 +16,8 @@ import me.ronygomes.ecommerce.inventory.presentation.eventhandler.handler.StockS
 import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 public class InventoryEventHandlerProcess {
@@ -49,11 +51,11 @@ public class InventoryEventHandlerProcess {
         log.info("InventoryEventHandler waiting for events on {}", exchangeName);
 
         DeliverCallback deliverCallback = (consumerTag, delivery) -> {
-            String message = new String(delivery.getBody(), "UTF-8");
+            String message = new String(delivery.getBody(), StandardCharsets.UTF_8);
             AMQP.BasicProperties props = delivery.getProperties();
             Map<String, Object> headers = props.getHeaders();
-            String messageType = headers != null && headers.containsKey("X-Message-Type")
-                    ? headers.get("X-Message-Type").toString()
+            String messageType = headers != null && headers.containsKey(Command.HEADER_MESSAGE_TYPE)
+                    ? headers.get(Command.HEADER_MESSAGE_TYPE).toString()
                     : "";
 
             dispatcher.dispatch(messageType, message, MessageMetadata.empty())

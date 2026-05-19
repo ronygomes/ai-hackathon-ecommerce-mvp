@@ -1,5 +1,6 @@
 package me.ronygomes.ecommerce.core.infrastructure;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
@@ -15,12 +16,8 @@ import java.util.concurrent.ExecutionException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 class RabbitMQCommandBusTest {
 
@@ -40,7 +37,7 @@ class RabbitMQCommandBusTest {
         when(factory.newConnection()).thenReturn(connection);
         when(connection.createChannel()).thenReturn(channel);
 
-        bus = new RabbitMQCommandBus("test_queue", factory);
+        bus = new RabbitMQCommandBus("test_queue", factory, new ObjectMapper());
     }
 
     @Test
@@ -56,7 +53,7 @@ class RabbitMQCommandBusTest {
         verify(channel).basicPublish(eq(""), eq("test_queue"), propsCaptor.capture(), bodyCaptor.capture());
 
         assertThat(propsCaptor.getValue().getHeaders())
-                .containsEntry("X-Message-Type", "SampleCommand");
+                .containsEntry(Command.HEADER_MESSAGE_TYPE, "SampleCommand");
         assertThat(new String(bodyCaptor.getValue()))
                 .contains("\"name\":\"widget\"")
                 .contains("\"qty\":3");
@@ -87,7 +84,7 @@ class RabbitMQCommandBusTest {
         ArgumentCaptor<AMQP.BasicProperties> propsCaptor = ArgumentCaptor.forClass(AMQP.BasicProperties.class);
         verify(channel).basicPublish(eq(""), eq("test_queue"), propsCaptor.capture(), any(byte[].class));
 
-        Object headerId = propsCaptor.getValue().getHeaders().get("X-Command-Id");
+        Object headerId = propsCaptor.getValue().getHeaders().get(Command.HEADER_COMMAND_ID);
         assertThat(returned).isNotNull();
         assertThat(headerId).asString().isEqualTo(returned.toString());
     }
@@ -101,8 +98,8 @@ class RabbitMQCommandBusTest {
         verify(channel, org.mockito.Mockito.times(2))
                 .basicPublish(eq(""), eq("test_queue"), propsCaptor.capture(), any(byte[].class));
 
-        Object firstId = propsCaptor.getAllValues().get(0).getHeaders().get("X-Command-Id");
-        Object secondId = propsCaptor.getAllValues().get(1).getHeaders().get("X-Command-Id");
+        Object firstId = propsCaptor.getAllValues().get(0).getHeaders().get(Command.HEADER_COMMAND_ID);
+        Object secondId = propsCaptor.getAllValues().get(1).getHeaders().get(Command.HEADER_COMMAND_ID);
         assertThat(firstId).asString().isNotBlank();
         assertThat(secondId).asString().isNotBlank();
         assertThat(firstId).isNotEqualTo(secondId);

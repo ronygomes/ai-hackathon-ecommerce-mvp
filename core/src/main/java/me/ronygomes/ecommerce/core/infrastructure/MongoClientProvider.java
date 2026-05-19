@@ -8,6 +8,7 @@ import com.mongodb.client.MongoClients;
 
 @Singleton
 public class MongoClientProvider implements Provider<MongoClient> {
+
     private final MongoClient mongoClient;
 
     @Inject

@@ -21,7 +21,7 @@ public class MongoOutboxStore implements OutboxStore {
         this(client.getDatabase(dbName).getCollection(collectionName), new ObjectMapper());
     }
 
-    MongoOutboxStore(MongoCollection<Document> collection, ObjectMapper objectMapper) {
+    public MongoOutboxStore(MongoCollection<Document> collection, ObjectMapper objectMapper) {
         this.collection = collection;
         this.objectMapper = objectMapper;
     }
@@ -60,6 +60,7 @@ public class MongoOutboxStore implements OutboxStore {
                     aggregateId,
                     event.getClass().getSimpleName(),
                     objectMapper.writeValueAsString(event));
+
             return new Document()
                     .append("_id", entry.id())
                     .append("aggregateId", entry.aggregateId())

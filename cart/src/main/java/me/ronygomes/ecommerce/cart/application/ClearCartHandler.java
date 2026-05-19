@@ -1,10 +1,10 @@
 package me.ronygomes.ecommerce.cart.application;
 
 import com.google.inject.Inject;
-import me.ronygomes.ecommerce.checkout.saga.message.command.ClearCartCommand;
 import me.ronygomes.ecommerce.cart.domain.CartId;
 import me.ronygomes.ecommerce.cart.domain.ShoppingCart;
 import me.ronygomes.ecommerce.cart.infrastructure.CartRepository;
+import me.ronygomes.ecommerce.checkout.saga.message.command.ClearCartCommand;
 import me.ronygomes.ecommerce.core.application.CommandHandler;
 import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxStore;
 

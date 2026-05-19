@@ -1,22 +1,8 @@
 package me.ronygomes.ecommerce.checkout.saga;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import me.ronygomes.ecommerce.checkout.saga.message.command.CancelOrderCommand;
-import me.ronygomes.ecommerce.checkout.saga.message.command.ClearCartCommand;
-import me.ronygomes.ecommerce.checkout.saga.message.command.DeductStockForOrderCommand;
-import me.ronygomes.ecommerce.checkout.saga.message.command.GetCartSnapshotCommand;
-import me.ronygomes.ecommerce.checkout.saga.message.command.GetProductSnapshotsCommand;
-import me.ronygomes.ecommerce.checkout.saga.message.command.MarkCheckoutCompletedCommand;
-import me.ronygomes.ecommerce.checkout.saga.message.command.ValidateStockBatchCommand;
-import me.ronygomes.ecommerce.checkout.saga.message.event.CartCleared;
-import me.ronygomes.ecommerce.checkout.saga.message.event.CartSnapshotProvided;
-import me.ronygomes.ecommerce.checkout.saga.message.event.CheckoutRequested;
-import me.ronygomes.ecommerce.checkout.saga.message.event.OrderCreated;
-import me.ronygomes.ecommerce.checkout.saga.message.event.ProductSnapshotsProvided;
-import me.ronygomes.ecommerce.checkout.saga.message.event.StockBatchValidated;
-import me.ronygomes.ecommerce.checkout.saga.message.event.StockBatchValidationFailed;
-import me.ronygomes.ecommerce.checkout.saga.message.event.StockDeductedForOrder;
-import me.ronygomes.ecommerce.checkout.saga.message.event.StockDeductionFailed;
+import me.ronygomes.ecommerce.checkout.saga.message.command.*;
+import me.ronygomes.ecommerce.checkout.saga.message.event.*;
 import me.ronygomes.ecommerce.core.application.Command;
 import me.ronygomes.ecommerce.core.application.CommandBus;
 import me.ronygomes.ecommerce.core.infrastructure.idempotency.ProcessedCommandStore;
@@ -32,13 +18,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 class SagaOrchestratorTest {
 
@@ -68,7 +48,9 @@ class SagaOrchestratorTest {
                 "L", "C", "x", "US", idempotencyKey);
     }
 
-    /** Pull the correlationId the orchestrator generated when it processed CheckoutRequested. */
+    /**
+     * Pull the correlationId the orchestrator generated when it processed CheckoutRequested.
+     */
     private UUID correlationOf(UUID orderId) {
         return store.findByOrderId(orderId).orElseThrow().correlationId;
     }

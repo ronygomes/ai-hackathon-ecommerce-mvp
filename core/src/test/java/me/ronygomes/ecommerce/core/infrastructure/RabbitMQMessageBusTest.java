@@ -1,9 +1,11 @@
 package me.ronygomes.ecommerce.core.infrastructure;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
+import me.ronygomes.ecommerce.core.application.Command;
 import me.ronygomes.ecommerce.core.domain.DomainEvent;
 import me.ronygomes.ecommerce.core.messaging.MessageBus;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,13 +18,8 @@ import java.util.concurrent.ExecutionException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 class RabbitMQMessageBusTest {
 
@@ -44,7 +41,7 @@ class RabbitMQMessageBusTest {
         when(factory.newConnection()).thenReturn(connection);
         when(connection.createChannel()).thenReturn(channel);
 
-        bus = new RabbitMQMessageBus("test_exchange", factory);
+        bus = new RabbitMQMessageBus("test_exchange", factory, new ObjectMapper());
     }
 
     @Test
@@ -59,7 +56,7 @@ class RabbitMQMessageBusTest {
                 .basicPublish(eq("test_exchange"), eq(""), propsCaptor.capture(), bodyCaptor.capture());
 
         assertThat(propsCaptor.getAllValues())
-                .extracting(p -> p.getHeaders().get("X-Message-Type"))
+                .extracting(p -> p.getHeaders().get(Command.HEADER_MESSAGE_TYPE))
                 .containsExactly("EventA", "EventB");
         assertThat(new String(bodyCaptor.getAllValues().get(0))).contains("\"payload\":\"hi\"");
         assertThat(new String(bodyCaptor.getAllValues().get(1))).contains("\"amount\":42");
@@ -97,7 +94,7 @@ class RabbitMQMessageBusTest {
                 .basicPublish(eq("test_exchange"), eq(""), propsCaptor.capture(), bodyCaptor.capture());
 
         assertThat(propsCaptor.getAllValues())
-                .extracting(p -> p.getHeaders().get("X-Message-Type"))
+                .extracting(p -> p.getHeaders().get(Command.HEADER_MESSAGE_TYPE))
                 .containsExactly("EventA", "EventB");
         assertThat(new String(bodyCaptor.getAllValues().get(0))).isEqualTo("{\"x\":1}");
         assertThat(new String(bodyCaptor.getAllValues().get(1))).isEqualTo("{\"y\":2}");

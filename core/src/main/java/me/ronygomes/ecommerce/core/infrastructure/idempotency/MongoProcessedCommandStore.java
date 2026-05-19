@@ -1,5 +1,6 @@
 package me.ronygomes.ecommerce.core.infrastructure.idempotency;
 
+import com.mongodb.ErrorCategory;
 import com.mongodb.MongoWriteException;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -14,7 +15,7 @@ public class MongoProcessedCommandStore implements ProcessedCommandStore {
         this(client.getDatabase(dbName).getCollection(collectionName));
     }
 
-    MongoProcessedCommandStore(MongoCollection<Document> collection) {
+    public MongoProcessedCommandStore(MongoCollection<Document> collection) {
         this.collection = collection;
     }
 
@@ -31,8 +32,8 @@ public class MongoProcessedCommandStore implements ProcessedCommandStore {
         try {
             collection.insertOne(doc);
         } catch (MongoWriteException e) {
-            // Duplicate key on _id means the command was already marked — idempotent no-op.
-            if (e.getError().getCategory() != com.mongodb.ErrorCategory.DUPLICATE_KEY) {
+            // Duplicate key on _id means the command was already marked (i.e. idempotent no-op)
+            if (e.getError().getCategory() != ErrorCategory.DUPLICATE_KEY) {
                 throw e;
             }
         }

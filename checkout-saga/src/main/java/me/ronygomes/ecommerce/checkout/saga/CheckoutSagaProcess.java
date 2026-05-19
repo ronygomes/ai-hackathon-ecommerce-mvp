@@ -1,12 +1,9 @@
 package me.ronygomes.ecommerce.checkout.saga;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rabbitmq.client.AMQP;
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
-import com.rabbitmq.client.DeliverCallback;
 import com.mongodb.client.MongoClient;
+import com.rabbitmq.client.*;
+import me.ronygomes.ecommerce.core.application.Command;
 import me.ronygomes.ecommerce.core.application.CommandBus;
 import me.ronygomes.ecommerce.core.infrastructure.AppConfig;
 import me.ronygomes.ecommerce.core.infrastructure.MongoClientProvider;
@@ -16,6 +13,7 @@ import me.ronygomes.ecommerce.core.infrastructure.idempotency.ProcessedCommandSt
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 public class CheckoutSagaProcess {
@@ -53,11 +51,11 @@ public class CheckoutSagaProcess {
         log.info("CheckoutSaga Coordinator waiting for events on {}", queueName);
 
         DeliverCallback deliverCallback = (consumerTag, delivery) -> {
-            String message = new String(delivery.getBody(), "UTF-8");
+            String message = new String(delivery.getBody(), StandardCharsets.UTF_8);
             AMQP.BasicProperties props = delivery.getProperties();
             Map<String, Object> headers = props.getHeaders();
-            String messageType = (headers != null && headers.get("X-Message-Type") != null)
-                    ? headers.get("X-Message-Type").toString()
+            String messageType = (headers != null && headers.get(Command.HEADER_MESSAGE_TYPE) != null)
+                    ? headers.get(Command.HEADER_MESSAGE_TYPE).toString()
                     : "";
 
             try {

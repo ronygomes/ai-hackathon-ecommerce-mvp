@@ -16,7 +16,7 @@ public class ProductDetailsUpdatedProjectionHandler implements MessageHandler<Pr
     private final MongoCollection<Document> detailView;
 
     public ProductDetailsUpdatedProjectionHandler(MongoCollection<Document> listView,
-            MongoCollection<Document> detailView) {
+                                                  MongoCollection<Document> detailView) {
         this.listView = listView;
         this.detailView = detailView;
     }

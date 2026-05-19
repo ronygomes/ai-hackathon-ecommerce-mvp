@@ -17,12 +17,13 @@ import java.util.concurrent.CompletableFuture;
 
 public abstract class BaseMongoRepository<TAggregate extends AggregateRoot<TId>, TId>
         implements Repository<TAggregate, TId> {
+
     protected final MongoCollection<Document> collection;
     protected final ObjectMapper objectMapper;
     protected final Class<TAggregate> aggregateClass;
 
     protected BaseMongoRepository(MongoClient mongoClient, String dbName, String collectionName,
-            Class<TAggregate> aggregateClass) {
+                                  Class<TAggregate> aggregateClass) {
         MongoDatabase database = mongoClient.getDatabase(dbName);
         this.collection = database.getCollection(collectionName);
         this.objectMapper = aggregateMapper();
@@ -52,6 +53,7 @@ public abstract class BaseMongoRepository<TAggregate extends AggregateRoot<TId>,
             Document doc = collection.find(Filters.eq("_id", id.toString())).first();
             if (doc == null)
                 return Optional.empty();
+
             try {
                 doc.remove("_id");
                 return Optional.of(objectMapper.readValue(doc.toJson(), aggregateClass));
@@ -67,8 +69,9 @@ public abstract class BaseMongoRepository<TAggregate extends AggregateRoot<TId>,
             try {
                 String json = objectMapper.writeValueAsString(aggregate);
                 Document doc = Document.parse(json);
-                doc.put("_id", aggregate.getId().toString()); // Ensure ID is used as MongoDB _id
-                collection.replaceOne(Filters.eq("_id", aggregate.getId().toString()), doc,
+                doc.put("_id", aggregate.getId().toString());
+                collection.replaceOne(Filters.eq("_id",
+                                aggregate.getId().toString()), doc,
                         new ReplaceOptions().upsert(true));
             } catch (Exception e) {
                 throw new RuntimeException("Failed to save aggregate", e);

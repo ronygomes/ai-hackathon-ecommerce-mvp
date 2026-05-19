@@ -15,7 +15,7 @@ public class ProductPriceChangedProjectionHandler implements MessageHandler<Prod
     private final MongoCollection<Document> detailView;
 
     public ProductPriceChangedProjectionHandler(MongoCollection<Document> listView,
-            MongoCollection<Document> detailView) {
+                                                MongoCollection<Document> detailView) {
         this.listView = listView;
         this.detailView = detailView;
     }

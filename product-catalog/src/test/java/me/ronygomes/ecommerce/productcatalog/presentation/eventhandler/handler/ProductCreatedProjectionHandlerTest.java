@@ -2,12 +2,7 @@ package me.ronygomes.ecommerce.productcatalog.presentation.eventhandler.handler;
 
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.ReplaceOptions;
-import me.ronygomes.ecommerce.productcatalog.domain.Price;
-import me.ronygomes.ecommerce.productcatalog.domain.ProductCreated;
-import me.ronygomes.ecommerce.productcatalog.domain.ProductDescription;
-import me.ronygomes.ecommerce.productcatalog.domain.ProductId;
-import me.ronygomes.ecommerce.productcatalog.domain.ProductName;
-import me.ronygomes.ecommerce.productcatalog.domain.Sku;
+import me.ronygomes.ecommerce.productcatalog.domain.*;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.junit.jupiter.api.BeforeEach;

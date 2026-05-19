@@ -1,20 +1,12 @@
 package me.ronygomes.ecommerce.ordering.presentation.commandhandler;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.inject.AbstractModule;
-import com.google.inject.Guice;
-import com.google.inject.Injector;
-import com.google.inject.Provides;
-import com.google.inject.Singleton;
-import com.google.inject.TypeLiteral;
+import com.google.inject.*;
 import com.mongodb.client.MongoClient;
-import com.rabbitmq.client.AMQP;
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
-import com.rabbitmq.client.DeliverCallback;
+import com.rabbitmq.client.*;
 import me.ronygomes.ecommerce.checkout.saga.message.command.CancelOrderCommand;
 import me.ronygomes.ecommerce.checkout.saga.message.command.MarkCheckoutCompletedCommand;
+import me.ronygomes.ecommerce.core.application.Command;
 import me.ronygomes.ecommerce.core.infrastructure.AppConfig;
 import me.ronygomes.ecommerce.core.infrastructure.MongoClientProvider;
 import me.ronygomes.ecommerce.core.infrastructure.Repository;
@@ -39,6 +31,7 @@ import me.ronygomes.ecommerce.ordering.infrastructure.OrderingMessageBus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -99,14 +92,14 @@ public class OrderingCommandHandlerProcess {
         log.info("Ordering CommandHandler waiting for messages on {}", queueName);
 
         DeliverCallback deliverCallback = (consumerTag, delivery) -> {
-            String message = new String(delivery.getBody(), "UTF-8");
+            String message = new String(delivery.getBody(), StandardCharsets.UTF_8);
             AMQP.BasicProperties props = delivery.getProperties();
             Map<String, Object> headers = props.getHeaders();
-            String messageType = headers != null && headers.containsKey("X-Message-Type")
-                    ? headers.get("X-Message-Type").toString()
+            String messageType = headers != null && headers.containsKey(Command.HEADER_MESSAGE_TYPE)
+                    ? headers.get(Command.HEADER_MESSAGE_TYPE).toString()
                     : "";
-            String commandId = headers != null && headers.get("X-Command-Id") != null
-                    ? headers.get("X-Command-Id").toString()
+            String commandId = headers != null && headers.get(Command.HEADER_COMMAND_ID) != null
+                    ? headers.get(Command.HEADER_COMMAND_ID).toString()
                     : null;
 
             dispatcher.dispatch(messageType, message, MessageMetadata.withCommandId(commandId))

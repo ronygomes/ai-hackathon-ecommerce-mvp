@@ -3,11 +3,7 @@ package me.ronygomes.ecommerce.ordering.application;
 import me.ronygomes.ecommerce.checkout.saga.message.event.CheckoutRequested;
 import me.ronygomes.ecommerce.core.domain.DomainEvent;
 import me.ronygomes.ecommerce.core.infrastructure.outbox.OutboxStore;
-import me.ronygomes.ecommerce.ordering.domain.CustomerInfo;
-import me.ronygomes.ecommerce.ordering.domain.IdempotencyKey;
-import me.ronygomes.ecommerce.ordering.domain.Order;
-import me.ronygomes.ecommerce.ordering.domain.OrderId;
-import me.ronygomes.ecommerce.ordering.domain.ShippingAddress;
+import me.ronygomes.ecommerce.ordering.domain.*;
 import me.ronygomes.ecommerce.ordering.infrastructure.OrderRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,11 +17,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 class PlaceOrderHandlerTest {
 
@@ -104,7 +96,7 @@ class PlaceOrderHandlerTest {
     @Test
     void handle_invalidIdempotencyKey_throwsSynchronously() {
         org.assertj.core.api.Assertions.assertThatThrownBy(() ->
-                handler.handle(sampleCommand_withInvalidKey()))
+                        handler.handle(sampleCommand_withInvalidKey()))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 

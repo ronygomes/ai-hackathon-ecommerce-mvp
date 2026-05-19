@@ -5,13 +5,8 @@ import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.ReplaceOptions;
-import me.ronygomes.ecommerce.cart.domain.CartId;
+import me.ronygomes.ecommerce.cart.domain.*;
 import me.ronygomes.ecommerce.core.infrastructure.AppConfig;
-
-import me.ronygomes.ecommerce.cart.domain.GuestToken;
-import me.ronygomes.ecommerce.cart.domain.ProductId;
-import me.ronygomes.ecommerce.cart.domain.Quantity;
-import me.ronygomes.ecommerce.cart.domain.ShoppingCart;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,9 +18,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 class MongoCartRepositoryTest {
 

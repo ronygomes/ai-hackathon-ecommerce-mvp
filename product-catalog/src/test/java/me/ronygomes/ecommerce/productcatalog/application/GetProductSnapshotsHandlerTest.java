@@ -5,12 +5,7 @@ import me.ronygomes.ecommerce.checkout.saga.message.event.ProductSnapshotsProvid
 import me.ronygomes.ecommerce.core.domain.DomainEvent;
 import me.ronygomes.ecommerce.core.infrastructure.Repository;
 import me.ronygomes.ecommerce.core.messaging.MessageBus;
-import me.ronygomes.ecommerce.productcatalog.domain.Price;
-import me.ronygomes.ecommerce.productcatalog.domain.Product;
-import me.ronygomes.ecommerce.productcatalog.domain.ProductDescription;
-import me.ronygomes.ecommerce.productcatalog.domain.ProductId;
-import me.ronygomes.ecommerce.productcatalog.domain.ProductName;
-import me.ronygomes.ecommerce.productcatalog.domain.Sku;
+import me.ronygomes.ecommerce.productcatalog.domain.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -22,9 +17,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 class GetProductSnapshotsHandlerTest {
 
