@@ -74,9 +74,9 @@ public class ShoppingCart extends BaseAggregate<CartId> {
         });
     }
 
-    public void clear(UUID correlationId) {
+    public void clear(UUID correlationId, String causationId) {
         this.items.clear();
-        addEvent(new CartCleared(this.id.value().toString(), correlationId));
+        addEvent(new CartCleared(this.id.value().toString(), correlationId, causationId));
     }
 
     private Optional<CartItem> findItem(ProductId productId) {

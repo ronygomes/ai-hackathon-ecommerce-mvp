@@ -27,7 +27,7 @@ class CartClearedEventProjectionHandlerTest {
 
     @Test
     void handle_clearsItemsArrayOnCartProjection() throws Exception {
-        handler.handle(new CartCleared("guest-1", UUID.randomUUID())).get();
+        handler.handle(new CartCleared("guest-1", UUID.randomUUID(), "evt-x")).get();
 
         verify(collection).updateOne(any(Bson.class), any(Bson.class));
     }

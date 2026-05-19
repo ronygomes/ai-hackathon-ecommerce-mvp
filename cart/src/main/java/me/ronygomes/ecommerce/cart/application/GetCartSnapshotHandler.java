@@ -40,7 +40,8 @@ public class GetCartSnapshotHandler implements CommandHandler<GetCartSnapshotCom
                             .collect(Collectors.toList());
 
                     return messageBus.publish(List.of(
-                            new CartSnapshotProvided(command.guestToken(), snapshots, command.correlationId())));
+                            new CartSnapshotProvided(command.guestToken(), snapshots,
+                                    command.correlationId(), command.causationId())));
                 });
     }
 }

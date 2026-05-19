@@ -43,7 +43,8 @@ public class GetProductSnapshotsHandler implements CommandHandler<GetProductSnap
                                         prod.isActive()));
                     }
                 }
-                messageBus.publish(List.of(new ProductSnapshotsProvided(snapshots, command.correlationId())));
+                messageBus.publish(List.of(
+                        new ProductSnapshotsProvided(snapshots, command.correlationId(), command.causationId())));
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }

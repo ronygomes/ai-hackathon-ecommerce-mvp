@@ -41,6 +41,7 @@ class GetCartSnapshotHandlerTest {
     void handle_existingCart_publishesSnapshotWithEveryItemAndCorrelationId() throws Exception {
         UUID token = UUID.randomUUID();
         UUID correlationId = UUID.randomUUID();
+        String causationId = "evt-trigger";
         ShoppingCart cart = ShoppingCart.create(new CartId(token), new GuestToken(token.toString()));
         UUID productA = UUID.randomUUID();
         UUID productB = UUID.randomUUID();
@@ -48,7 +49,7 @@ class GetCartSnapshotHandlerTest {
         cart.addItem(new ProductId(productB), new Quantity(5));
         when(repository.getById(any())).thenReturn(CompletableFuture.completedFuture(Optional.of(cart)));
 
-        handler.handle(new GetCartSnapshotCommand(token.toString(), correlationId)).get();
+        handler.handle(new GetCartSnapshotCommand(token.toString(), correlationId, causationId)).get();
 
         ArgumentCaptor<List<DomainEvent>> events = ArgumentCaptor.forClass(List.class);
         verify(messageBus).publish(events.capture());
@@ -56,6 +57,7 @@ class GetCartSnapshotHandlerTest {
                 .isInstanceOfSatisfying(CartSnapshotProvided.class, snapshot -> {
                     assertThat(snapshot.guestToken()).isEqualTo(token.toString());
                     assertThat(snapshot.correlationId()).isEqualTo(correlationId);
+                    assertThat(snapshot.causationId()).isEqualTo(causationId);
                     assertThat(snapshot.items()).hasSize(2)
                             .extracting(CartSnapshotProvided.CartItemSnapshot::productId)
                             .containsExactlyInAnyOrder(productA, productB);
@@ -66,9 +68,10 @@ class GetCartSnapshotHandlerTest {
     void handle_missingCart_publishesEmptySnapshotWithCorrelationId() throws Exception {
         UUID token = UUID.randomUUID();
         UUID correlationId = UUID.randomUUID();
+        String causationId = "evt-trigger";
         when(repository.getById(any())).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
-        handler.handle(new GetCartSnapshotCommand(token.toString(), correlationId)).get();
+        handler.handle(new GetCartSnapshotCommand(token.toString(), correlationId, causationId)).get();
 
         ArgumentCaptor<List<DomainEvent>> events = ArgumentCaptor.forClass(List.class);
         verify(messageBus).publish(events.capture());
@@ -76,6 +79,7 @@ class GetCartSnapshotHandlerTest {
                 .isInstanceOfSatisfying(CartSnapshotProvided.class, snapshot -> {
                     assertThat(snapshot.items()).isEmpty();
                     assertThat(snapshot.correlationId()).isEqualTo(correlationId);
+                    assertThat(snapshot.causationId()).isEqualTo(causationId);
                 });
     }
 }

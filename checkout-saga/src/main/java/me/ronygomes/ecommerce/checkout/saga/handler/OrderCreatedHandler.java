@@ -26,7 +26,7 @@ public class OrderCreatedHandler implements MessageHandler<OrderCreated> {
         try (var ignored = MdcScope.with("orderId", event.orderId())) {
             SagaState state = store.findByOrderId(UUID.fromString(event.orderId())).orElse(null);
             if (state != null) {
-                cartBus.send(new ClearCartCommand(state.guestToken, state.correlationId));
+                cartBus.send(new ClearCartCommand(state.guestToken, state.correlationId, event.getEventId()));
             }
             return CompletableFuture.completedFuture(null);
         }

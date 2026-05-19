@@ -27,10 +27,11 @@ public class CheckoutRequestedHandler implements MessageHandler<CheckoutRequeste
         UUID correlationId = UUID.randomUUID();
         try (var ignored = MdcScope.with(Map.of(
                 "correlationId", correlationId.toString(),
+                "causationId", event.getEventId(),
                 "orderId", event.orderId().toString()))) {
             SagaState state = new SagaState(event.orderId(), correlationId, event.guestToken(), event.idempotencyKey());
             store.save(state);
-            cartBus.send(new GetCartSnapshotCommand(event.guestToken(), correlationId));
+            cartBus.send(new GetCartSnapshotCommand(event.guestToken(), correlationId, event.getEventId()));
             return CompletableFuture.completedFuture(null);
         }
     }

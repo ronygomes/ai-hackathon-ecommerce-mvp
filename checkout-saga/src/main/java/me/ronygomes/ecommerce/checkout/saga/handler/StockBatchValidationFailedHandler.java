@@ -26,7 +26,9 @@ public class StockBatchValidationFailedHandler implements MessageHandler<StockBa
 
     @Override
     public CompletableFuture<Void> handle(StockBatchValidationFailed event) {
-        try (var ignored = MdcScope.with("correlationId", event.correlationId().toString())) {
+        try (var ignored = MdcScope.with(java.util.Map.of(
+                "correlationId", event.correlationId().toString(),
+                "causationId", event.causationId()))) {
             SagaState state = store.findByCorrelationId(event.correlationId()).orElse(null);
             if (state != null) {
                 String reason = "stock validation failed for " + event.rejected().size() + " item(s)";

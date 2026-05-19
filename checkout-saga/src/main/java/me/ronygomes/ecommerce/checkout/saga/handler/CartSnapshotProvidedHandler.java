@@ -9,6 +9,7 @@ import me.ronygomes.ecommerce.core.messaging.MessageHandler;
 import me.ronygomes.ecommerce.core.observability.MdcScope;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -25,7 +26,9 @@ public class CartSnapshotProvidedHandler implements MessageHandler<CartSnapshotP
 
     @Override
     public CompletableFuture<Void> handle(CartSnapshotProvided event) {
-        try (var ignored = MdcScope.with("correlationId", event.correlationId().toString())) {
+        try (var ignored = MdcScope.with(Map.of(
+                "correlationId", event.correlationId().toString(),
+                "causationId", event.causationId()))) {
             SagaState state = store.findByCorrelationId(event.correlationId()).orElse(null);
             if (state != null) {
                 state.cartItems = event.items();
@@ -34,7 +37,7 @@ public class CartSnapshotProvidedHandler implements MessageHandler<CartSnapshotP
                 List<UUID> pids = event.items().stream()
                         .map(CartSnapshotProvided.CartItemSnapshot::productId)
                         .collect(Collectors.toList());
-                catalogBus.send(new GetProductSnapshotsCommand(pids, state.correlationId));
+                catalogBus.send(new GetProductSnapshotsCommand(pids, state.correlationId, event.getEventId()));
             }
             return CompletableFuture.completedFuture(null);
         }

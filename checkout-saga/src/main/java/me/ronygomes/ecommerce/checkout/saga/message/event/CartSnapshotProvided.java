@@ -9,14 +9,17 @@ public record CartSnapshotProvided(
         String guestToken,
         List<CartItemSnapshot> items,
         UUID correlationId,
+        String causationId,
         String eventId,
         long timestamp) implements DomainEvent {
 
     public record CartItemSnapshot(UUID productId, int qty) {
     }
 
-    public CartSnapshotProvided(String guestToken, List<CartItemSnapshot> items, UUID correlationId) {
-        this(guestToken, items, correlationId, UUID.randomUUID().toString(), System.currentTimeMillis());
+    public CartSnapshotProvided(String guestToken, List<CartItemSnapshot> items, UUID correlationId,
+                                String causationId) {
+        this(guestToken, items, correlationId, causationId, UUID.randomUUID().toString(),
+                System.currentTimeMillis());
     }
 
     @Override

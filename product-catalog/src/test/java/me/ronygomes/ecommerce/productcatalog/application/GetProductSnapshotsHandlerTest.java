@@ -54,14 +54,16 @@ class GetProductSnapshotsHandlerTest {
                 .thenReturn(CompletableFuture.completedFuture(Optional.of(b)));
 
         UUID correlationId = UUID.randomUUID();
+        String causationId = "evt-trigger";
         handler.handle(new GetProductSnapshotsCommand(
-                List.of(UUID.randomUUID(), UUID.randomUUID()), correlationId)).get();
+                List.of(UUID.randomUUID(), UUID.randomUUID()), correlationId, causationId)).get();
 
         ArgumentCaptor<List<DomainEvent>> events = ArgumentCaptor.forClass(List.class);
         verify(messageBus).publish(events.capture());
         assertThat(events.getValue()).singleElement()
                 .isInstanceOfSatisfying(ProductSnapshotsProvided.class, evt -> {
                     assertThat(evt.correlationId()).isEqualTo(correlationId);
+                    assertThat(evt.causationId()).isEqualTo(causationId);
                     assertThat(evt.snapshots())
                             .extracting(ProductSnapshotsProvided.ProductSnapshot::sku)
                             .containsExactly("SKU-A", "SKU-B");
@@ -76,7 +78,7 @@ class GetProductSnapshotsHandlerTest {
                 .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
         handler.handle(new GetProductSnapshotsCommand(
-                List.of(UUID.randomUUID(), UUID.randomUUID()), UUID.randomUUID())).get();
+                List.of(UUID.randomUUID(), UUID.randomUUID()), UUID.randomUUID(), "evt-x")).get();
 
         ArgumentCaptor<List<DomainEvent>> events = ArgumentCaptor.forClass(List.class);
         verify(messageBus).publish(events.capture());
@@ -88,7 +90,7 @@ class GetProductSnapshotsHandlerTest {
     @Test
     void handle_emptyIdList_publishesEmptySnapshotEventEchoingCorrelationId() throws Exception {
         UUID correlationId = UUID.randomUUID();
-        handler.handle(new GetProductSnapshotsCommand(List.of(), correlationId)).get();
+        handler.handle(new GetProductSnapshotsCommand(List.of(), correlationId, "evt-x")).get();
 
         ArgumentCaptor<List<DomainEvent>> events = ArgumentCaptor.forClass(List.class);
         verify(messageBus).publish(events.capture());

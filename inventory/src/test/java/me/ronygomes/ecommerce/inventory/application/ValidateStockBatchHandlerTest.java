@@ -47,7 +47,7 @@ class ValidateStockBatchHandlerTest {
 
         UUID correlationId = UUID.randomUUID();
         handler.handle(new ValidateStockBatchCommand(List.of(
-                new ValidateStockBatchCommand.StockItemRequest(UUID.randomUUID(), 10)), correlationId)).get();
+                new ValidateStockBatchCommand.StockItemRequest(UUID.randomUUID(), 10)), correlationId, "test-cause")).get();
 
         ArgumentCaptor<String> aggIdCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<List<DomainEvent>> eventsCaptor = ArgumentCaptor.forClass(List.class);
@@ -68,7 +68,7 @@ class ValidateStockBatchHandlerTest {
         UUID correlationId = UUID.randomUUID();
         handler.handle(new ValidateStockBatchCommand(List.of(
                 new ValidateStockBatchCommand.StockItemRequest(UUID.randomUUID(), 10),
-                new ValidateStockBatchCommand.StockItemRequest(outOfStockProductId, 10)), correlationId)).get();
+                new ValidateStockBatchCommand.StockItemRequest(outOfStockProductId, 10)), correlationId, "test-cause")).get();
 
         ArgumentCaptor<List<DomainEvent>> events = ArgumentCaptor.forClass(List.class);
         verify(outboxStore).append(any(), events.capture());
@@ -91,7 +91,7 @@ class ValidateStockBatchHandlerTest {
                 .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
         handler.handle(new ValidateStockBatchCommand(List.of(
-                new ValidateStockBatchCommand.StockItemRequest(missingProductId, 1)), UUID.randomUUID())).get();
+                new ValidateStockBatchCommand.StockItemRequest(missingProductId, 1)), UUID.randomUUID(), "test-cause")).get();
 
         ArgumentCaptor<List<DomainEvent>> events = ArgumentCaptor.forClass(List.class);
         verify(outboxStore).append(any(), events.capture());
@@ -115,7 +115,7 @@ class ValidateStockBatchHandlerTest {
 
         handler.handle(new ValidateStockBatchCommand(List.of(
                 new ValidateStockBatchCommand.StockItemRequest(a, 5),
-                new ValidateStockBatchCommand.StockItemRequest(b, 5)), UUID.randomUUID())).get();
+                new ValidateStockBatchCommand.StockItemRequest(b, 5)), UUID.randomUUID(), "test-cause")).get();
 
         ArgumentCaptor<List<DomainEvent>> events = ArgumentCaptor.forClass(List.class);
         verify(outboxStore).append(any(), events.capture());

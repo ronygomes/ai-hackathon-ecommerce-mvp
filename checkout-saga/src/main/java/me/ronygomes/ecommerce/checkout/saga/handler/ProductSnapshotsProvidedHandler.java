@@ -9,6 +9,7 @@ import me.ronygomes.ecommerce.core.messaging.MessageHandler;
 import me.ronygomes.ecommerce.core.observability.MdcScope;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -24,7 +25,9 @@ public class ProductSnapshotsProvidedHandler implements MessageHandler<ProductSn
 
     @Override
     public CompletableFuture<Void> handle(ProductSnapshotsProvided event) {
-        try (var ignored = MdcScope.with("correlationId", event.correlationId().toString())) {
+        try (var ignored = MdcScope.with(Map.of(
+                "correlationId", event.correlationId().toString(),
+                "causationId", event.causationId()))) {
             SagaState state = store.findByCorrelationId(event.correlationId()).orElse(null);
             if (state != null) {
                 state.productSnapshots = event.snapshots();
@@ -32,7 +35,7 @@ public class ProductSnapshotsProvidedHandler implements MessageHandler<ProductSn
                 List<ValidateStockBatchCommand.StockItemRequest> items = state.cartItems.stream()
                         .map(i -> new ValidateStockBatchCommand.StockItemRequest(i.productId(), i.qty()))
                         .collect(Collectors.toList());
-                inventoryBus.send(new ValidateStockBatchCommand(items, state.correlationId));
+                inventoryBus.send(new ValidateStockBatchCommand(items, state.correlationId, event.getEventId()));
             }
             return CompletableFuture.completedFuture(null);
         }

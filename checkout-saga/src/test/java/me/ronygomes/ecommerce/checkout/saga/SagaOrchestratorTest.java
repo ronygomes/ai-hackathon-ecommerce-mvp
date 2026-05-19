@@ -115,7 +115,7 @@ class SagaOrchestratorTest {
         CartSnapshotProvided snapshot = new CartSnapshotProvided("g1", List.of(
                 new CartSnapshotProvided.CartItemSnapshot(productA, 2),
                 new CartSnapshotProvided.CartItemSnapshot(productB, 3)),
-                correlationId);
+                correlationId, "test-cause");
 
         orchestrator.handle("CartSnapshotProvided", json(snapshot));
 
@@ -138,10 +138,10 @@ class SagaOrchestratorTest {
         orchestrator.handle("CheckoutRequested", json(checkoutRequested(orderId, "g1", "k")));
         UUID correlationId = correlationOf(orderId);
         orchestrator.handle("CartSnapshotProvided", json(new CartSnapshotProvided("g1", List.of(
-                new CartSnapshotProvided.CartItemSnapshot(productA, 4)), correlationId)));
+                new CartSnapshotProvided.CartItemSnapshot(productA, 4)), correlationId, "test-cause")));
         ProductSnapshotsProvided snapshots = new ProductSnapshotsProvided(List.of(
                 new ProductSnapshotsProvided.ProductSnapshot(productA, "SKU", "Widget", 10.0, true)),
-                correlationId);
+                correlationId, "test-cause");
 
         orchestrator.handle("ProductSnapshotsProvided", json(snapshots));
 
@@ -162,12 +162,12 @@ class SagaOrchestratorTest {
         orchestrator.handle("CheckoutRequested", json(checkoutRequested(orderId, "g1", "k")));
         UUID correlationId = correlationOf(orderId);
         orchestrator.handle("CartSnapshotProvided", json(new CartSnapshotProvided("g1", List.of(
-                new CartSnapshotProvided.CartItemSnapshot(productA, 2)), correlationId)));
+                new CartSnapshotProvided.CartItemSnapshot(productA, 2)), correlationId, "test-cause")));
         orchestrator.handle("ProductSnapshotsProvided", json(new ProductSnapshotsProvided(List.of(
                 new ProductSnapshotsProvided.ProductSnapshot(productA, "SKU", "Widget", 1.0, true)),
-                correlationId)));
+                correlationId, "test-cause")));
 
-        orchestrator.handle("StockBatchValidated", json(new StockBatchValidated(correlationId)));
+        orchestrator.handle("StockBatchValidated", json(new StockBatchValidated(correlationId, "test-cause")));
 
         SagaState state = store.findByOrderId(orderId).orElseThrow();
         assertThat(state.stockValidated).isTrue();
@@ -188,7 +188,7 @@ class SagaOrchestratorTest {
         UUID correlationId = correlationOf(orderId);
         orchestrator.handle("CartSnapshotProvided", json(new CartSnapshotProvided("g1", List.of(
                 new CartSnapshotProvided.CartItemSnapshot(productA, 1),
-                new CartSnapshotProvided.CartItemSnapshot(productB, 1)), correlationId)));
+                new CartSnapshotProvided.CartItemSnapshot(productB, 1)), correlationId, "test-cause")));
 
         orchestrator.handle("StockDeductedForOrder", json(new StockDeductedForOrder(orderId, productA, 9)));
 
@@ -204,7 +204,7 @@ class SagaOrchestratorTest {
         orchestrator.handle("CheckoutRequested", json(checkoutRequested(orderId, "g1", "k")));
         UUID correlationId = correlationOf(orderId);
         orchestrator.handle("CartSnapshotProvided", json(new CartSnapshotProvided("g1", List.of(
-                new CartSnapshotProvided.CartItemSnapshot(productA, 1)), correlationId)));
+                new CartSnapshotProvided.CartItemSnapshot(productA, 1)), correlationId, "test-cause")));
 
         orchestrator.handle("StockDeductedForOrder", json(new StockDeductedForOrder(orderId, productA, 9)));
 
@@ -236,7 +236,7 @@ class SagaOrchestratorTest {
         orchestrator.handle("CheckoutRequested", json(checkoutRequested(orderId, "g1", "k")));
         UUID correlationId = correlationOf(orderId);
 
-        orchestrator.handle("CartCleared", json(new CartCleared("g1", correlationId)));
+        orchestrator.handle("CartCleared", json(new CartCleared("g1", correlationId, "test-cause")));
 
         assertThat(store.findByOrderId(orderId)).isEmpty();
         verifyNoInteractions(orderBus);
@@ -248,7 +248,7 @@ class SagaOrchestratorTest {
         orchestrator.handle("CheckoutRequested", json(checkoutRequested(orderId, "g1", "k")));
 
         // User-initiated cart clear with a fresh correlationId — saga should ignore it.
-        orchestrator.handle("CartCleared", json(new CartCleared("g1", UUID.randomUUID())));
+        orchestrator.handle("CartCleared", json(new CartCleared("g1", UUID.randomUUID(), "test-cause")));
 
         assertThat(store.findByOrderId(orderId)).isPresent();
     }
@@ -260,14 +260,14 @@ class SagaOrchestratorTest {
         orchestrator.handle("CheckoutRequested", json(checkoutRequested(orderId, "g1", "k")));
         UUID correlationId = correlationOf(orderId);
         orchestrator.handle("CartSnapshotProvided", json(new CartSnapshotProvided("g1", List.of(
-                new CartSnapshotProvided.CartItemSnapshot(productA, 1)), correlationId)));
+                new CartSnapshotProvided.CartItemSnapshot(productA, 1)), correlationId, "test-cause")));
         orchestrator.handle("ProductSnapshotsProvided", json(new ProductSnapshotsProvided(List.of(
                 new ProductSnapshotsProvided.ProductSnapshot(productA, "SKU", "Widget", 1.0, true)),
-                correlationId)));
-        orchestrator.handle("StockBatchValidated", json(new StockBatchValidated(correlationId)));
+                correlationId, "test-cause")));
+        orchestrator.handle("StockBatchValidated", json(new StockBatchValidated(correlationId, "test-cause")));
         orchestrator.handle("StockDeductedForOrder", json(new StockDeductedForOrder(orderId, productA, 0)));
         orchestrator.handle("OrderCreated", json(new OrderCreated(orderId.toString(), "g1", "j@e")));
-        orchestrator.handle("CartCleared", json(new CartCleared("g1", correlationId)));
+        orchestrator.handle("CartCleared", json(new CartCleared("g1", correlationId, "test-cause")));
 
         assertThat(store.findAll()).isEmpty();
         verify(orderBus, times(1)).send(any(MarkCheckoutCompletedCommand.class));
@@ -303,14 +303,14 @@ class SagaOrchestratorTest {
         orchestrator.handle("CheckoutRequested", json(checkoutRequested(orderId, "g1", "k")));
         UUID correlationId = correlationOf(orderId);
         orchestrator.handle("CartSnapshotProvided", json(new CartSnapshotProvided("g1", List.of(
-                new CartSnapshotProvided.CartItemSnapshot(productA, 1)), correlationId)));
+                new CartSnapshotProvided.CartItemSnapshot(productA, 1)), correlationId, "test-cause")));
         orchestrator.handle("ProductSnapshotsProvided", json(new ProductSnapshotsProvided(List.of(
                 new ProductSnapshotsProvided.ProductSnapshot(productA, "SKU", "Widget", 1.0, true)),
-                correlationId)));
+                correlationId, "test-cause")));
 
         orchestrator.handle("StockBatchValidationFailed", json(new StockBatchValidationFailed(List.of(
                 new StockBatchValidationFailed.RejectedItem(productA, 1, 0, "Insufficient stock")),
-                correlationId)));
+                correlationId, "test-cause")));
 
         assertThat(store.findByOrderId(orderId)).isEmpty();
         ArgumentCaptor<Command<?>> sent = ArgumentCaptor.forClass(Command.class);
@@ -325,7 +325,7 @@ class SagaOrchestratorTest {
     void stockBatchValidationFailed_withNoMatchingSaga_isNoOp() throws Exception {
         orchestrator.handle("StockBatchValidationFailed", json(new StockBatchValidationFailed(List.of(
                 new StockBatchValidationFailed.RejectedItem(UUID.randomUUID(), 1, 0, "x")),
-                UUID.randomUUID())));
+                UUID.randomUUID(), "test-cause")));
 
         assertThat(store.findAll()).isEmpty();
         verifyNoInteractions(orderBus);
@@ -338,7 +338,7 @@ class SagaOrchestratorTest {
         orchestrator.handle("CheckoutRequested", json(checkoutRequested(orderId, "g1", "k")));
         UUID correlationId = correlationOf(orderId);
         orchestrator.handle("CartSnapshotProvided", json(new CartSnapshotProvided("g1", List.of(
-                new CartSnapshotProvided.CartItemSnapshot(productA, 5)), correlationId)));
+                new CartSnapshotProvided.CartItemSnapshot(productA, 5)), correlationId, "test-cause")));
 
         orchestrator.handle("StockDeductionFailed",
                 json(new StockDeductionFailed(orderId, productA, 5, 1, "Insufficient stock")));
@@ -385,10 +385,10 @@ class SagaOrchestratorTest {
         persistentOrchestrator.handle("CheckoutRequested", json(checkoutRequested(orderId, "g1", "k")));
         UUID correlationId = correlationOf(orderId);
         persistentOrchestrator.handle("CartSnapshotProvided", json(new CartSnapshotProvided("g1", List.of(
-                new CartSnapshotProvided.CartItemSnapshot(productA, 1)), correlationId)));
+                new CartSnapshotProvided.CartItemSnapshot(productA, 1)), correlationId, "test-cause")));
         persistentOrchestrator.handle("ProductSnapshotsProvided", json(new ProductSnapshotsProvided(List.of(
-                new ProductSnapshotsProvided.ProductSnapshot(productA, "SKU", "W", 1.0, true)), correlationId)));
-        persistentOrchestrator.handle("StockBatchValidated", json(new StockBatchValidated(correlationId)));
+                new ProductSnapshotsProvided.ProductSnapshot(productA, "SKU", "W", 1.0, true)), correlationId, "test-cause")));
+        persistentOrchestrator.handle("StockBatchValidated", json(new StockBatchValidated(correlationId, "test-cause")));
         persistentOrchestrator.handle("StockDeductedForOrder", json(new StockDeductedForOrder(orderId, productA, 0)));
 
         verify(spy, times(5)).save(any());
@@ -444,7 +444,7 @@ class SagaOrchestratorTest {
         UUID correlationId = correlationOf(orderId);
         idempotent.handle("CartSnapshotProvided", json(new CartSnapshotProvided("g1", List.of(
                 new CartSnapshotProvided.CartItemSnapshot(productA, 1),
-                new CartSnapshotProvided.CartItemSnapshot(productB, 1)), correlationId)));
+                new CartSnapshotProvided.CartItemSnapshot(productB, 1)), correlationId, "test-cause")));
 
         String deductBody = json(new StockDeductedForOrder(orderId, productA, 0));
         idempotent.handle("StockDeductedForOrder", deductBody);

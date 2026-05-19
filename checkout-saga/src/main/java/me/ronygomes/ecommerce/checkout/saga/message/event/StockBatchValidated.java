@@ -4,9 +4,10 @@ import me.ronygomes.ecommerce.core.domain.DomainEvent;
 
 import java.util.UUID;
 
-public record StockBatchValidated(UUID correlationId, String eventId, long timestamp) implements DomainEvent {
-    public StockBatchValidated(UUID correlationId) {
-        this(correlationId, UUID.randomUUID().toString(), System.currentTimeMillis());
+public record StockBatchValidated(UUID correlationId, String causationId, String eventId, long timestamp)
+        implements DomainEvent {
+    public StockBatchValidated(UUID correlationId, String causationId) {
+        this(correlationId, causationId, UUID.randomUUID().toString(), System.currentTimeMillis());
     }
 
     @Override

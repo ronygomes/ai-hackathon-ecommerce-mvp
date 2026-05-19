@@ -8,14 +8,15 @@ import java.util.UUID;
 public record StockBatchValidationFailed(
         List<RejectedItem> rejected,
         UUID correlationId,
+        String causationId,
         String eventId,
         long timestamp) implements DomainEvent {
 
     public record RejectedItem(UUID productId, int requestedQty, int availableQty, String reason) {
     }
 
-    public StockBatchValidationFailed(List<RejectedItem> rejected, UUID correlationId) {
-        this(rejected, correlationId, UUID.randomUUID().toString(), System.currentTimeMillis());
+    public StockBatchValidationFailed(List<RejectedItem> rejected, UUID correlationId, String causationId) {
+        this(rejected, correlationId, causationId, UUID.randomUUID().toString(), System.currentTimeMillis());
     }
 
     @Override

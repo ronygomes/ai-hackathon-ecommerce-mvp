@@ -4,5 +4,5 @@ import me.ronygomes.ecommerce.core.application.Command;
 
 import java.util.UUID;
 
-public record ClearCartCommand(String guestToken, UUID correlationId) implements Command<Void> {
+public record ClearCartCommand(String guestToken, UUID correlationId, String causationId) implements Command<Void> {
 }

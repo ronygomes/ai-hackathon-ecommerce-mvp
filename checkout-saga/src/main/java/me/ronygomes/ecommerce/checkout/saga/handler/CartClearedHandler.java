@@ -6,6 +6,7 @@ import me.ronygomes.ecommerce.checkout.saga.message.event.CartCleared;
 import me.ronygomes.ecommerce.core.messaging.MessageHandler;
 import me.ronygomes.ecommerce.core.observability.MdcScope;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 public class CartClearedHandler implements MessageHandler<CartCleared> {
@@ -18,7 +19,9 @@ public class CartClearedHandler implements MessageHandler<CartCleared> {
 
     @Override
     public CompletableFuture<Void> handle(CartCleared event) {
-        try (var ignored = MdcScope.with("correlationId", event.correlationId().toString())) {
+        try (var ignored = MdcScope.with(Map.of(
+                "correlationId", event.correlationId().toString(),
+                "causationId", event.causationId()))) {
             SagaState state = store.findByCorrelationId(event.correlationId()).orElse(null);
             if (state != null) {
                 store.remove(state.orderId);

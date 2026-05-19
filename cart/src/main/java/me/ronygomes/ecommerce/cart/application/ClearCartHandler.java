@@ -26,7 +26,7 @@ public class ClearCartHandler implements CommandHandler<ClearCartCommand, Void> 
                 .thenCompose(cartOpt -> {
                     if (cartOpt.isPresent()) {
                         ShoppingCart cart = cartOpt.get();
-                        cart.clear(command.correlationId());
+                        cart.clear(command.correlationId(), command.causationId());
                         return repository.save(cart)
                                 .thenAccept(v -> {
                                     outboxStore.append(cart.getId().toString(), cart.getUncommittedEvents());

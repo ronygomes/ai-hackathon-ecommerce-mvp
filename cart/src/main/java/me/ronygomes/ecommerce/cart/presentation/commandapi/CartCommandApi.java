@@ -63,7 +63,8 @@ public class CartCommandApi {
             // User-initiated clears aren't part of a saga; the fresh correlationId flows
             // to the event harmlessly and the saga's CartCleared handler will ignore it
             // (no matching saga state).
-            commandBus.send(new ClearCartCommand(guestToken, UUID.randomUUID()));
+            // User-initiated, no upstream event — causationId is null (originating message).
+            commandBus.send(new ClearCartCommand(guestToken, UUID.randomUUID(), null));
             ctx.status(HttpStatus.ACCEPTED);
             ctx.result("{}");
         });

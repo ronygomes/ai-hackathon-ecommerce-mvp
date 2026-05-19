@@ -45,10 +45,12 @@ public class ValidateStockBatchHandler implements CommandHandler<ValidateStockBa
                 }
                 String batchId = UUID.randomUUID().toString();
                 if (rejected.isEmpty()) {
-                    outboxStore.append(batchId, List.of(new StockBatchValidated(command.correlationId())));
+                    outboxStore.append(batchId,
+                            List.of(new StockBatchValidated(command.correlationId(), command.causationId())));
                 } else {
                     outboxStore.append(batchId,
-                            List.of(new StockBatchValidationFailed(rejected, command.correlationId())));
+                            List.of(new StockBatchValidationFailed(rejected, command.correlationId(),
+                                    command.causationId())));
                 }
             } catch (Exception e) {
                 throw new RuntimeException(e);
