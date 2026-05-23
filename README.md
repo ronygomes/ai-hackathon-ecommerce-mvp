@@ -6,22 +6,19 @@ conducted by **Shah Ali Newaj Topu**. I attended the first offering of this cour
 This repository contains code from second day, where we created an eCommerce application following clean architecture
 using AntiGravity.
 
+**Note:** Although prompts are tailored toward asynchronous programming, but this implementation doesn't utilize Javalin
+7.2's asynchronous web server features.
+
 ## Running locally
 
 The system is 17 JVM processes (4 per subsystem × 4 subsystems + 1 saga) plus RabbitMQ and MongoDB. They're orchestrated
 with [Overmind](https://github.com/DarthSim/overmind) reading the [Procfile](./Procfile).
 
-### One-time setup
-
-```sh
-brew install overmind
-```
-
 ### Bring everything up
 
 ```sh
 docker compose up -d         # rabbitmq + mongodb
-./gradlew classes            # one-time build (optional but faster first start)
+./gradlew clean build        # build the project
 overmind start               # all 17 JVM processes, color-coded aggregated logs
 ```
 
